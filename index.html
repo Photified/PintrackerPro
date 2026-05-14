@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PinTracker Pro</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#ff5722">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>🎳 PinTracker Pro</h1>
+  </header>
+
+  <main>
+    <section id="login-section">
+      <h2>Welcome Back</h2>
+      <p>Sign in to track your stats and compete.</p>
+      <button id="login-btn">Sign in with Google</button>
+    </section>
+
+    <section id="app-section" style="display: none;">
+      <div class="profile-card">
+        <img id="user-photo" src="" alt="Profile Photo">
+        <h2 id="user-name">Bowler</h2>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <h3>Strike Rate</h3>
+            <p id="stat-strike">0%</p>
+          </div>
+          <div class="stat-box">
+            <h3>Spare Rate</h3>
+            <p id="stat-spare">0%</p>
+          </div>
+        </div>
+        <div id="achievements-container">
+          </div>
+      </div>
+
+      <div class="log-game-card">
+        <h3>Log a New Game</h3>
+        <p class="hint">Enter throws separated by commas (e.g., 10, 7, 3, 5, 4)</p>
+        <input type="text" id="game-throws" placeholder="10, 7, 3...">
+        <button id="submit-game-btn">Save Game</button>
+        <p id="game-feedback"></p>
+      </div>
+      
+      <button id="logout-btn" class="secondary">Sign Out</button>
+    </section>
+  </main>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(err => console.error(err));
+    }
+  </script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
