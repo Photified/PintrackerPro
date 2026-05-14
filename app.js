@@ -367,12 +367,13 @@ async function finishGame() {
   const frames = groupThrowsIntoFrames(flatThrowsArray);
 
   try {
-    await addDoc(collection(db, "games"), { userId: currentUser.uid, date: new Date(), frames: frames, score: score });
+    // FIX: Saving 'throws: flatThrowsArray' instead of 'frames' to avoid nested array Firebase errors
+    await addDoc(collection(db, "games"), { userId: currentUser.uid, date: new Date(), throws: flatThrowsArray, score: score });
+    
     const userRef = doc(db, "users", currentUser.uid);
     const userSnap = await getDoc(userRef);
     let userData = userSnap.exists() ? userSnap.data() : {};
     
-    // Migrate old achievements format before saving new ones
     if (Array.isArray(userData.achievements)) { const migrated = {}; userData.achievements.forEach(ach => migrated[ach] = 1); userData.achievements = migrated; }
 
     const newStats = calculateNewStats(frames, userData.stats || {}, score);
