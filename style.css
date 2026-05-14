@@ -58,9 +58,16 @@ img#user-photo { border-radius: 50%; width: 80px; height: 80px; border: 3px soli
 .close-modal { color: var(--text-muted); float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
 .close-modal:hover { color: white; }
 
+/* Quick Action Buttons */
+.throw-controls { display: flex; gap: 10px; justify-content: center; width: 100%; margin-top: 10px; }
+.throw-controls button { margin-top: 0; flex: 1; }
+.strike-color { background-color: #e53935 !important; }
+.spare-color { background-color: #1e88e5 !important; }
+
 /* Achievements */
 .achievements-card { background-color: var(--surface); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3); text-align: left; }
 .achievements-card h3 { margin-top: 0; color: var(--primary); border-bottom: 1px solid #333; padding-bottom: 10px; }
 .achievements-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
 .badge { background: linear-gradient(135deg, #ffd700, #b8860b); color: #000; padding: 8px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.4); animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+

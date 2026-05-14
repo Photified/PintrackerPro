@@ -64,6 +64,9 @@ onAuthStateChanged(auth, async (user) => {
     
     await setDoc(doc(db, "users", user.uid), { name: user.displayName, lastLogin: new Date() }, { merge: true });
     loadUserData();
+    
+    // Draw the empty scorecard immediately
+    flatThrowsArray = [];
     renderScorecard(); 
   } else {
     currentUser = null;
@@ -77,16 +80,12 @@ async function loadUserData() {
   const userDoc = await getDoc(doc(db, "users", currentUser.uid));
   if (userDoc.exists()) {
     const data = userDoc.data();
-    
-    // Load Stats
     if (data.stats) {
       document.getElementById('stat-avg').innerText = data.stats.average || 0;
       document.getElementById('stat-high').innerText = data.stats.highGame || 0;
       document.getElementById('stat-first').innerText = data.stats.firstBallAvg || 0;
       document.getElementById('stat-open').innerText = `${data.stats.openFrameRate || 0}%`;
     }
-
-    // Load Achievements
     const achContainer = document.getElementById('achievements-container');
     if (data.achievements && data.achievements.length > 0) {
       achContainer.innerHTML = data.achievements.map(ach => `<div class="badge">${ach}</div>`).join('');
@@ -114,16 +113,16 @@ function calculateGameScore(throws) {
     return score;
 }
 
+// FIX: Now pushes incomplete frames so the scoreboard updates instantly!
 function groupThrowsIntoFrames(throws) {
   let frames = []; let currentFrame = [];
   for (let i = 0; i < throws.length; i++) {
     currentFrame.push(throws[i]);
     if (frames.length < 9) {
       if (throws[i] === 10 || currentFrame.length === 2) { frames.push(currentFrame); currentFrame = []; }
-    } else {
-      if (i === throws.length - 1) frames.push(currentFrame);
     }
   }
+  if (currentFrame.length > 0) frames.push(currentFrame);
   return frames;
 }
 
@@ -151,36 +150,24 @@ function calculateNewStats(frames, currentStats, gameScore) {
   };
 }
 
-// Checks current game data against achievement rules
 function checkAchievements(flatThrows, frames, score, currentAchievements = []) {
   let unlocked = new Set(currentAchievements);
-
   if (score >= 200) unlocked.add('200 Club 🎯');
-
   let isClean = true;
   for (let i = 0; i < 10; i++) {
     const f = frames[i];
-    if (!f || (f[0] !== 10 && (f.length < 2 || f[0] + f[1] !== 10))) {
-      isClean = false; break;
-    }
+    if (!f || (f[0] !== 10 && (f.length < 2 || f[0] + f[1] !== 10))) { isClean = false; break; }
   }
   if (isClean && frames.length === 10) unlocked.add('Clean Game 🧼');
-
   let strikeStreak = 0;
   for (let t of flatThrows) {
     if (t === 10) {
       strikeStreak++;
       if (strikeStreak >= 3) unlocked.add('Turkey 🦃');
-    } else {
-      strikeStreak = 0;
-    }
+    } else { strikeStreak = 0; }
   }
-
   const tenth = frames[9];
-  if (tenth && tenth[0] === 10 && tenth[1] === 10 && tenth[2] === 10) {
-    unlocked.add('Clutch Finisher 🧊');
-  }
-
+  if (tenth && tenth[0] === 10 && tenth[1] === 10 && tenth[2] === 10) unlocked.add('Clutch Finisher 🧊');
   return Array.from(unlocked);
 }
 
@@ -215,7 +202,6 @@ function renderScorecard() {
         if ((t2 === 'X' && flatThrowsArray[throwIdx] !== undefined && flatThrowsArray[throwIdx+1] !== undefined) || 
             (t2 === '/' && flatThrowsArray[throwIdx] !== undefined) || 
             (t2 !== 'X' && t2 !== '/' && frameData.length === 2)) {
-            
             let fScore = 0;
             if (t2 === 'X') fScore = 10 + flatThrowsArray[throwIdx] + flatThrowsArray[throwIdx+1];
             else if (t2 === '/') fScore = 10 + flatThrowsArray[throwIdx];
@@ -265,6 +251,9 @@ const frameDisplay = document.getElementById('current-frame-display');
 const throwDisplay = document.getElementById('current-throw-display');
 const gameFeedback = document.getElementById('game-feedback');
 
+const strikeBtn = document.getElementById('strike-btn');
+const spareBtn = document.getElementById('spare-btn');
+
 pins.forEach(pin => { pin.addEventListener('click', () => { if (!pin.classList.contains('locked-down')) pin.classList.toggle('down'); }); });
 
 function resetPins(fullReset = false) {
@@ -298,17 +287,44 @@ function processThrow(pinsFallen) {
 }
 
 function advanceFrame() { currentFrame++; currentThrow = 1; pinsStandingThisFrame = 10; resetPins(true); updateUI(); }
-function updateUI() { frameDisplay.innerText = `Frame: ${currentFrame}`; throwDisplay.innerText = `Throw: ${currentThrow}`; }
 
+function updateUI() { 
+  frameDisplay.innerText = `Frame: ${currentFrame}`; 
+  throwDisplay.innerText = `Throw: ${currentThrow}`; 
+
+  // Smart Button Toggling
+  if (pinsStandingThisFrame === 10) {
+      strikeBtn.disabled = false;
+      spareBtn.disabled = true;
+  } else {
+      strikeBtn.disabled = true;
+      spareBtn.disabled = false;
+  }
+}
+
+// Action Buttons
 document.getElementById('gutter-btn').addEventListener('click', () => processThrow(0));
+
 document.getElementById('record-throw-btn').addEventListener('click', () => {
   const newlyDown = document.querySelectorAll('.pin.down:not(.locked-down)').length;
   processThrow(newlyDown);
 });
 
+strikeBtn.addEventListener('click', () => {
+  document.querySelectorAll('.pin:not(.down)').forEach(p => p.classList.add('down'));
+  processThrow(pinsStandingThisFrame);
+});
+
+spareBtn.addEventListener('click', () => {
+  document.querySelectorAll('.pin:not(.down)').forEach(p => p.classList.add('down'));
+  processThrow(pinsStandingThisFrame);
+});
+
 async function finishGame() {
   document.getElementById('record-throw-btn').disabled = true;
   document.getElementById('gutter-btn').disabled = true;
+  strikeBtn.disabled = true;
+  spareBtn.disabled = true;
   gameFeedback.innerText = "Saving game...";
 
   const score = calculateGameScore(flatThrowsArray);
@@ -331,7 +347,10 @@ async function finishGame() {
     
     gameFeedback.innerText = `Game Saved! Score: ${score}`;
     loadUserData(); 
-  } catch (err) { console.error(err); gameFeedback.innerText = "Error saving game."; }
+  } catch (err) { 
+    console.error("Save Error:", err); 
+    gameFeedback.innerText = "Error saving game. Check Firebase Rules!"; 
+  }
 
   setTimeout(() => {
     flatThrowsArray = []; currentFrame = 1; currentThrow = 1; pinsStandingThisFrame = 10;
