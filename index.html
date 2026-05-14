@@ -5,12 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PinTracker Pro</title>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#ff5722">
+  <meta name="theme-color" content="#121212">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
     <h1>🎳 PinTracker Pro</h1>
+    <nav id="main-nav" style="display: none;">
+      <button id="tab-profile" class="nav-btn active">Profile</button>
+      <button id="tab-play" class="nav-btn">Play</button>
+      <button id="tab-help" class="nav-btn">Help</button>
+    </nav>
   </header>
 
   <main>
@@ -20,71 +25,95 @@
       <button id="login-btn">Sign in with Google</button>
     </section>
 
-    <section id="app-section" style="display: none;">
+    <div id="app-wrapper" style="display: none;">
       
-      <div class="profile-card">
-        <img id="user-photo" src="" alt="Profile Photo">
-        <h2 id="user-name">Bowler</h2>
-        <div class="stats-grid">
-          <div class="stat-box">
-            <h3>Average</h3>
-            <p id="stat-avg">0</p>
-          </div>
-          <div class="stat-box">
-            <h3>High Game</h3>
-            <p id="stat-high">0</p>
-          </div>
-          <div class="stat-box">
-            <h3>1st Ball Avg</h3>
-            <p id="stat-first">0.0</p>
-          </div>
-          <div class="stat-box">
-            <h3>Open Frames</h3>
-            <p id="stat-open">0%</p>
+      <section id="profile-section" class="tab-content active">
+        <div class="profile-card">
+          <img id="user-photo" src="" alt="Profile Photo">
+          <h2 id="user-name">Bowler</h2>
+          <div class="stats-grid">
+            <div class="stat-box">
+              <h3>Average</h3>
+              <p id="stat-avg">0</p>
+            </div>
+            <div class="stat-box">
+              <h3>High Game</h3>
+              <p id="stat-high">0</p>
+            </div>
+            <div class="stat-box">
+              <h3>1st Ball Avg</h3>
+              <p id="stat-first">0.0</p>
+            </div>
+            <div class="stat-box">
+              <h3>Open Frames</h3>
+              <p id="stat-open">0%</p>
+            </div>
           </div>
         </div>
-      </div>
+        <button id="logout-btn" class="secondary">Sign Out</button>
+      </section>
 
-      <div class="log-game-card">
-        <h3>Log Game</h3>
-        
-        <div id="game-status">
-          <span id="current-frame-display">Frame: 1</span> | 
-          <span id="current-throw-display">Throw: 1</span>
-        </div>
-
-        <div class="pin-deck">
-          <div class="pin-row">
-            <div class="pin" data-pin="7">7</div>
-            <div class="pin" data-pin="8">8</div>
-            <div class="pin" data-pin="9">9</div>
-            <div class="pin" data-pin="10">10</div>
-          </div>
-          <div class="pin-row">
-            <div class="pin" data-pin="4">4</div>
-            <div class="pin" data-pin="5">5</div>
-            <div class="pin" data-pin="6">6</div>
-          </div>
-          <div class="pin-row">
-            <div class="pin" data-pin="2">2</div>
-            <div class="pin" data-pin="3">3</div>
-          </div>
-          <div class="pin-row">
-            <div class="pin" data-pin="1">1</div>
-          </div>
+      <section id="play-section" class="tab-content">
+        <div class="scorecard-container">
+          <div id="scorecard" class="scorecard">
+            </div>
         </div>
 
-        <div class="throw-controls">
-          <button id="gutter-btn" class="secondary">Gutter (0)</button>
-          <button id="record-throw-btn">Record Throw</button>
+        <div class="log-game-card">
+          <div id="game-status">
+            <span id="current-frame-display">Frame: 1</span> | 
+            <span id="current-throw-display">Throw: 1</span>
+          </div>
+
+          <div class="pin-deck">
+            <div class="pin-row">
+              <div class="pin" data-pin="7">7</div>
+              <div class="pin" data-pin="8">8</div>
+              <div class="pin" data-pin="9">9</div>
+              <div class="pin" data-pin="10">10</div>
+            </div>
+            <div class="pin-row">
+              <div class="pin" data-pin="4">4</div>
+              <div class="pin" data-pin="5">5</div>
+              <div class="pin" data-pin="6">6</div>
+            </div>
+            <div class="pin-row">
+              <div class="pin" data-pin="2">2</div>
+              <div class="pin" data-pin="3">3</div>
+            </div>
+            <div class="pin-row">
+              <div class="pin" data-pin="1">1</div>
+            </div>
+          </div>
+
+          <div class="throw-controls">
+            <button id="gutter-btn" class="secondary">Gutter (0)</button>
+            <button id="record-throw-btn">Record Throw</button>
+          </div>
+          
+          <p id="game-feedback"></p>
         </div>
-        
-        <p id="game-feedback"></p>
-      </div>
-      
-      <button id="logout-btn" class="secondary">Sign Out</button>
-    </section>
+      </section>
+
+    </div>
   </main>
+
+  <div id="help-modal" class="modal">
+    <div class="modal-content">
+      <span class="close-modal" id="close-help">&times;</span>
+      <h2>How to Play</h2>
+      <ul style="text-align: left; line-height: 1.6;">
+        <li>Tap the pins that you knocked down on the lane.</li>
+        <li>Click <b>Record Throw</b> to lock them in.</li>
+        <li>Click <b>Gutter</b> if you missed entirely.</li>
+        <li>Your scorecard will automatically calculate strikes (X) and spares (/).</li>
+        <li>Stats are saved automatically when the 10th frame is complete.</li>
+      </ul>
+      <hr style="border-color: #333; margin: 20px 0;">
+      <h3>App Settings</h3>
+      <button id="install-btn" style="display: none; background-color: #4caf50;">Install App to Home Screen</button>
+    </div>
+  </div>
 
   <script>
     if ('serviceWorker' in navigator) {
