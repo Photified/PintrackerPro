@@ -5,7 +5,7 @@ const loginSection = document.getElementById('login-section');
 const appWrapper = document.getElementById('app-wrapper');
 const mainNav = document.getElementById('main-nav');
 let currentUser = null;
-let radarChart = null; // Holds the Chart.js instance
+let radarChart = null; 
 
 const tabs = {
   profile: { btn: document.getElementById('tab-profile'), content: document.getElementById('profile-section') },
@@ -57,7 +57,6 @@ photoInput.addEventListener('change', (e) => {
   reader.onload = (event) => {
     const img = new Image();
     img.onload = () => {
-      // Compress image using Canvas
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const MAX_SIZE = 250;
@@ -68,7 +67,6 @@ photoInput.addEventListener('change', (e) => {
       canvas.width = width; canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
       
-      // Get base64 string and save
       const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
       document.getElementById('user-photo').src = dataUrl;
       setDoc(doc(db, "users", currentUser.uid), { customPhoto: dataUrl }, { merge: true });
@@ -93,6 +91,7 @@ onAuthStateChanged(auth, async (user) => {
     
     loadUserData();
     flatThrowsArray = [];
+    splitIndices = [];
     renderScorecard(); 
   } else {
     currentUser = null;
@@ -107,7 +106,8 @@ const MASTER_ACHIEVEMENTS = [
   { id: '200 Club 🎯', desc: 'Score 200+' },
   { id: 'Clean Game 🧼', desc: 'No open frames' },
   { id: 'Turkey 🦃', desc: '3 strikes in a row' },
-  { id: 'Clutch Finisher 🧊', desc: '3 strikes in 10th' }
+  { id: 'Clutch Finisher 🧊', desc: '3 strikes in 10th' },
+  { id: 'Split Converter 🎳', desc: 'Convert a split into a spare' }
 ];
 
 async function loadUserData() {
@@ -115,20 +115,16 @@ async function loadUserData() {
   if (userDoc.exists()) {
     const data = userDoc.data();
     
-    // Set Photo
     document.getElementById('user-photo').src = data.customPhoto || currentUser.photoURL;
 
-    // Load Stats
     let s = data.stats || {};
     document.getElementById('stat-avg').innerText = s.average || 0;
     document.getElementById('stat-high').innerText = s.highGame || 0;
     document.getElementById('stat-first').innerText = s.firstBallAvg || 0;
     document.getElementById('stat-open').innerText = `${s.openFrameRate || 0}%`;
 
-    // Render Web Chart
     drawRadarChart(s);
 
-    // Load Achievements (Migrating old Array format to new Object format just in case)
     let achData = data.achievements || {};
     if (Array.isArray(achData)) {
       const migrated = {};
@@ -153,13 +149,11 @@ async function loadUserData() {
 function drawRadarChart(stats) {
   const ctx = document.getElementById('statsChart').getContext('2d');
   
-  // Calculate relative percentages for the web chart (0-100 scale)
   const avgWeb = stats.average ? (stats.average / 300) * 100 : 0;
   const highWeb = stats.highGame ? (stats.highGame / 300) * 100 : 0;
   const firstBallWeb = stats.firstBallAvg ? (stats.firstBallAvg / 10) * 100 : 0;
   const fillRateWeb = stats.openFrameRate ? 100 - parseFloat(stats.openFrameRate) : 0;
   
-  // Estimate Strike/Spare rate based on raw tallies if they exist, else guess based on open frames
   let strikePct = 0; let sparePct = 0;
   if (stats.totalStrikes !== undefined) {
     strikePct = (stats.totalStrikes / stats.totalFirstThrows) * 100;
@@ -168,7 +162,7 @@ function drawRadarChart(stats) {
 
   const chartData = [avgWeb, highWeb, strikePct, sparePct, fillRateWeb, firstBallWeb];
 
-  if (radarChart) radarChart.destroy(); // Remove old chart before drawing new
+  if (radarChart) radarChart.destroy(); 
 
   radarChart = new Chart(ctx, {
     type: 'radar',
@@ -241,7 +235,6 @@ function calculateNewStats(frames, currentStats, gameScore) {
   const totalFirstBallPins = (currentStats.totalFirstBallPins || 0) + sessionFirstBallPins;
   const totalOpenFrames = (currentStats.totalOpenFrames || 0) + sessionOpenFrames;
   
-  // Track raw strikes/spares for the web chart
   const totalStrikes = (currentStats.totalStrikes || 0) + sessionStrikes;
   const totalSpares = (currentStats.totalSpares || 0) + sessionSpares;
   const totalSpareOpps = (currentStats.totalSpareOpps || 0) + sessionSpareOpps;
@@ -255,8 +248,36 @@ function calculateNewStats(frames, currentStats, gameScore) {
   };
 }
 
-// Now handles an Object to count how many times an achievement was earned
-function checkAchievements(flatThrows, frames, score, currentAchievementsObj = {}) {
+// USBC Rules Graph Algorithm to detect if standing pins form a split
+function checkIfSplit(standingPins) {
+  if (standingPins.includes(1) || standingPins.length < 2) return false;
+  
+  // Defines which pins are adjacent to each other.
+  const edges = {
+    2: [4, 5, 8], 3: [5, 6, 9], 4: [2, 7, 8], 5: [2, 3, 8, 9],
+    6: [3, 9, 10], 7: [4], 8: [2, 4, 5], 9: [3, 5, 6], 10: [6]
+  };
+  
+  let visited = new Set();
+  let stack = [standingPins[0]];
+  visited.add(standingPins[0]);
+  
+  while(stack.length > 0) {
+    let current = stack.pop();
+    if (edges[current]) {
+      edges[current].forEach(neighbor => {
+        if (standingPins.includes(neighbor) && !visited.has(neighbor)) {
+          visited.add(neighbor);
+          stack.push(neighbor);
+        }
+      });
+    }
+  }
+  // If we couldn't connect all standing pins together, it's a split!
+  return visited.size !== standingPins.length;
+}
+
+function checkAchievements(flatThrows, frames, score, splitIdxArray, currentAchievementsObj = {}) {
   let newAch = { ...currentAchievementsObj };
   const addAch = (id) => { newAch[id] = (newAch[id] || 0) + 1; };
 
@@ -278,6 +299,14 @@ function checkAchievements(flatThrows, frames, score, currentAchievementsObj = {
   const tenth = frames[9];
   if (tenth && tenth[0] === 10 && tenth[1] === 10 && tenth[2] === 10) addAch('Clutch Finisher 🧊');
 
+  // Check for Split Conversions
+  splitIdxArray.forEach(idx => {
+    // If the throw immediately after the split knocked down all remaining pins
+    if (flatThrows[idx + 1] === 10 - flatThrows[idx]) {
+      addAch('Split Converter 🎳');
+    }
+  });
+
   return newAch;
 }
 
@@ -296,7 +325,14 @@ function renderScorecard() {
       if (i < 10) {
         let t1val = flatThrowsArray[throwIdx]; let t2val = flatThrowsArray[throwIdx + 1];
         if (t1val === 10) { t2 = 'X'; throwIdx += 1; } 
-        else { t1 = t1val === 0 ? '-' : t1val; if (frameData.length > 1) { t2 = (t1val + t2val === 10) ? '/' : (t2val === 0 ? '-' : t2val); } throwIdx += 2; }
+        else { 
+          t1 = t1val === 0 ? '-' : t1val; 
+          if (splitIndices.includes(throwIdx)) t1 = `<span class="split-circle">${t1}</span>`;
+          
+          if (frameData.length > 1) { t2 = (t1val + t2val === 10) ? '/' : (t2val === 0 ? '-' : t2val); } 
+          throwIdx += 2; 
+        }
+        
         if ((t2 === 'X' && flatThrowsArray[throwIdx] !== undefined && flatThrowsArray[throwIdx+1] !== undefined) || (t2 === '/' && flatThrowsArray[throwIdx] !== undefined) || (t2 !== 'X' && t2 !== '/' && frameData.length === 2)) {
             let fScore = 0;
             if (t2 === 'X') fScore = 10 + flatThrowsArray[throwIdx] + flatThrowsArray[throwIdx+1];
@@ -306,9 +342,20 @@ function renderScorecard() {
         }
       } else {
         let t1val = flatThrowsArray[throwIdx]; let t2val = flatThrowsArray[throwIdx + 1]; let t3val = flatThrowsArray[throwIdx + 2];
-        if (t1val !== undefined) t1 = t1val === 10 ? 'X' : (t1val === 0 ? '-' : t1val);
-        if (t2val !== undefined) t2 = (t1val !== 10 && t1val + t2val === 10) ? '/' : (t2val === 10 ? 'X' : (t2val === 0 ? '-' : t2val));
-        if (t3val !== undefined) t3 = (t2val !== 10 && t2val !== '/' && t2val + t3val === 10) ? '/' : (t3val === 10 ? 'X' : (t3val === 0 ? '-' : t3val));
+        
+        if (t1val !== undefined) {
+          t1 = t1val === 10 ? 'X' : (t1val === 0 ? '-' : t1val);
+          if (splitIndices.includes(throwIdx)) t1 = `<span class="split-circle">${t1}</span>`;
+        }
+        if (t2val !== undefined) {
+          t2 = (t1val !== 10 && t1val + t2val === 10) ? '/' : (t2val === 10 ? 'X' : (t2val === 0 ? '-' : t2val));
+          if (t2 !== '/' && splitIndices.includes(throwIdx + 1)) t2 = `<span class="split-circle">${t2}</span>`;
+        }
+        if (t3val !== undefined) {
+          t3 = (t2val !== 10 && t2val !== '/' && t2val + t3val === 10) ? '/' : (t3val === 10 ? 'X' : (t3val === 0 ? '-' : t3val));
+          if (t3 !== '/' && splitIndices.includes(throwIdx + 2)) t3 = `<span class="split-circle">${t3}</span>`;
+        }
+
         if (flatThrowsArray.length >= throwIdx + (t1val === 10 || t1val+t2val===10 ? 3 : 2)) {
           runningScore += calculateGameScore(flatThrowsArray.slice(throwIdx)); frameScoreDisplay = calculateGameScore(flatThrowsArray); 
         }
@@ -322,6 +369,7 @@ function renderScorecard() {
 // --- PIN DECK LOGIC ---
 let currentFrame = 1; let currentThrow = 1; let pinsStandingThisFrame = 10;
 let flatThrowsArray = [];
+let splitIndices = []; // Tracks which throws resulted in a split
 
 const pins = document.querySelectorAll('.pin');
 const frameDisplay = document.getElementById('current-frame-display');
@@ -335,7 +383,22 @@ pins.forEach(pin => { pin.addEventListener('click', () => { if (!pin.classList.c
 function resetPins(fullReset = false) { pins.forEach(pin => { if (fullReset) pin.classList.remove('down', 'locked-down'); else if (pin.classList.contains('down')) pin.classList.add('locked-down'); }); }
 
 function processThrow(pinsFallen) {
-  flatThrowsArray.push(pinsFallen); pinsStandingThisFrame -= pinsFallen; renderScorecard(); 
+  const isFirstThrowOfRack = (pinsStandingThisFrame === 10);
+  
+  flatThrowsArray.push(pinsFallen); 
+  pinsStandingThisFrame -= pinsFallen; 
+  
+  // Check for split right after the throw
+  if (isFirstThrowOfRack && pinsFallen > 0 && pinsFallen < 10) {
+    let standing = [];
+    document.querySelectorAll('.pin:not(.down)').forEach(p => standing.push(parseInt(p.dataset.pin)));
+    if (checkIfSplit(standing)) {
+      splitIndices.push(flatThrowsArray.length - 1);
+    }
+  }
+
+  renderScorecard(); 
+
   if (currentFrame < 10) {
     if (pinsStandingThisFrame === 0 || currentThrow === 2) advanceFrame();
     else { currentThrow = 2; resetPins(false); updateUI(); }
@@ -367,8 +430,7 @@ async function finishGame() {
   const frames = groupThrowsIntoFrames(flatThrowsArray);
 
   try {
-    // FIX: Saving 'throws: flatThrowsArray' instead of 'frames' to avoid nested array Firebase errors
-    await addDoc(collection(db, "games"), { userId: currentUser.uid, date: new Date(), throws: flatThrowsArray, score: score });
+    await addDoc(collection(db, "games"), { userId: currentUser.uid, date: new Date(), throws: flatThrowsArray, splits: splitIndices, score: score });
     
     const userRef = doc(db, "users", currentUser.uid);
     const userSnap = await getDoc(userRef);
@@ -377,7 +439,7 @@ async function finishGame() {
     if (Array.isArray(userData.achievements)) { const migrated = {}; userData.achievements.forEach(ach => migrated[ach] = 1); userData.achievements = migrated; }
 
     const newStats = calculateNewStats(frames, userData.stats || {}, score);
-    const newAchievements = checkAchievements(flatThrowsArray, frames, score, userData.achievements || {});
+    const newAchievements = checkAchievements(flatThrowsArray, frames, score, splitIndices, userData.achievements || {});
 
     await setDoc(userRef, { stats: newStats, achievements: newAchievements }, { merge: true });
     
@@ -386,7 +448,7 @@ async function finishGame() {
   } catch (err) { console.error("Save Error:", err); gameFeedback.innerText = "Error saving game."; }
 
   setTimeout(() => {
-    flatThrowsArray = []; currentFrame = 1; currentThrow = 1; pinsStandingThisFrame = 10;
+    flatThrowsArray = []; splitIndices = []; currentFrame = 1; currentThrow = 1; pinsStandingThisFrame = 10;
     resetPins(true); updateUI(); renderScorecard();
     document.getElementById('record-throw-btn').disabled = false; document.getElementById('gutter-btn').disabled = false;
     gameFeedback.innerText = ""; switchTab('profile'); 
