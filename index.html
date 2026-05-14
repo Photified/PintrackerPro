@@ -30,11 +30,15 @@
     <div id="app-wrapper" style="display: none;">
       
       <section id="profile-section" class="tab-content active">
+        
+        <button id="back-to-me-btn" class="secondary" style="display: none; margin-bottom: 15px; border-color: var(--primary); color: var(--primary);">
+          ⬅ Back to My Profile
+        </button>
+
         <div class="profile-card">
-          
           <div class="photo-wrapper" id="photo-wrapper">
             <img id="user-photo" src="" alt="Profile Photo">
-            <div class="photo-overlay">✏️</div>
+            <div class="photo-overlay" id="photo-overlay">✏️</div>
             <input type="file" id="photo-upload" accept="image/*" style="display: none;">
           </div>
           
@@ -76,10 +80,24 @@
           </div>
 
           <div class="pin-deck">
-            <div class="pin-row"><div class="pin" data-pin="7">7</div><div class="pin" data-pin="8">8</div><div class="pin" data-pin="9">9</div><div class="pin" data-pin="10">10</div></div>
-            <div class="pin-row"><div class="pin" data-pin="4">4</div><div class="pin" data-pin="5">5</div><div class="pin" data-pin="6">6</div></div>
-            <div class="pin-row"><div class="pin" data-pin="2">2</div><div class="pin" data-pin="3">3</div></div>
-            <div class="pin-row"><div class="pin" data-pin="1">1</div></div>
+            <div class="pin-row">
+              <div class="pin" data-pin="7">7</div>
+              <div class="pin" data-pin="8">8</div>
+              <div class="pin" data-pin="9">9</div>
+              <div class="pin" data-pin="10">10</div>
+            </div>
+            <div class="pin-row">
+              <div class="pin" data-pin="4">4</div>
+              <div class="pin" data-pin="5">5</div>
+              <div class="pin" data-pin="6">6</div>
+            </div>
+            <div class="pin-row">
+              <div class="pin" data-pin="2">2</div>
+              <div class="pin" data-pin="3">3</div>
+            </div>
+            <div class="pin-row">
+              <div class="pin" data-pin="1">1</div>
+            </div>
           </div>
 
           <div class="throw-controls quick-actions">
@@ -98,7 +116,7 @@
         <div class="profile-card">
           <h3>Find a Bowler</h3>
           <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-            <input type="text" id="friend-search-input" placeholder="Search by exact name..." style="margin-top: 0; flex: 1;">
+            <input type="text" id="friend-search-input" placeholder="Search by exact email..." style="margin-top: 0; flex: 1;">
             <button id="friend-search-btn" style="margin-top: 0; width: auto;">Search</button>
           </div>
           <div id="search-results" style="text-align: left;"></div>

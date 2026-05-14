@@ -10,7 +10,7 @@ const appWrapper = document.getElementById('app-wrapper');
 const mainNav = document.getElementById('main-nav');
 let currentUser = null;
 let radarChart = null; 
-let currentUserFriends = []; // Stores the current user's friend UIDs
+let currentUserFriends = []; 
 
 const tabs = {
   profile: { btn: document.getElementById('tab-profile'), content: document.getElementById('profile-section') },
@@ -26,23 +26,43 @@ function switchTab(tabName) {
   tabs[tabName].btn.classList.add('active');
   tabs[tabName].content.classList.add('active');
 }
-tabs.profile.btn.addEventListener('click', () => switchTab('profile'));
-tabs.play.btn.addEventListener('click', () => switchTab('play'));
+
+tabs.profile.btn.addEventListener('click', () => {
+  if (currentUser) {
+    loadProfile(currentUser.uid); // Always load YOUR profile when clicking the tab
+  }
+  switchTab('profile');
+});
+
+tabs.play.btn.addEventListener('click', () => {
+  switchTab('play');
+});
+
 tabs.friends.btn.addEventListener('click', () => {
   switchTab('friends');
-  loadFriendsList(); // Refresh list when tab is opened
+  loadFriendsList();
 });
 
 // --- MODAL & PWA ---
 const helpModal = document.getElementById('help-modal');
-document.getElementById('tab-help').addEventListener('click', () => helpModal.style.display = 'block');
-document.getElementById('close-help').addEventListener('click', () => helpModal.style.display = 'none');
-window.onclick = (e) => { if (e.target == helpModal) helpModal.style.display = 'none'; }
+document.getElementById('tab-help').addEventListener('click', () => {
+  helpModal.style.display = 'block';
+});
+document.getElementById('close-help').addEventListener('click', () => {
+  helpModal.style.display = 'none';
+});
+window.onclick = (e) => { 
+  if (e.target == helpModal) {
+    helpModal.style.display = 'none'; 
+  }
+}
 
 let deferredPrompt;
 const installBtn = document.getElementById('install-btn');
 window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault(); deferredPrompt = e; installBtn.style.display = 'block'; 
+  e.preventDefault(); 
+  deferredPrompt = e; 
+  installBtn.style.display = 'block'; 
 });
 installBtn.addEventListener('click', async () => {
   if (deferredPrompt) {
@@ -70,11 +90,23 @@ photoInput.addEventListener('change', (e) => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const MAX_SIZE = 250;
-      let width = img.width; let height = img.height;
-      if (width > height) { if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } } 
-      else { if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; } }
+      let width = img.width; 
+      let height = img.height;
+
+      if (width > height) { 
+        if (width > MAX_SIZE) { 
+          height *= MAX_SIZE / width; 
+          width = MAX_SIZE; 
+        } 
+      } else { 
+        if (height > MAX_SIZE) { 
+          width *= MAX_SIZE / height; 
+          height = MAX_SIZE; 
+        } 
+      }
       
-      canvas.width = width; canvas.height = height;
+      canvas.width = width; 
+      canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
       
       const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
@@ -96,12 +128,16 @@ onAuthStateChanged(auth, async (user) => {
     loginSection.style.display = 'none';
     appWrapper.style.display = 'block';
     mainNav.style.display = 'flex';
-    document.getElementById('user-name').innerText = user.displayName;
     
-    // Save standard Google photo URL as a fallback if they don't have a custom one
-    await setDoc(doc(db, "users", user.uid), { name: user.displayName, defaultPhoto: user.photoURL, lastLogin: new Date() }, { merge: true });
+    // Save email so we can search by it!
+    await setDoc(doc(db, "users", user.uid), { 
+      name: user.displayName, 
+      email: user.email.toLowerCase(), 
+      defaultPhoto: user.photoURL, 
+      lastLogin: new Date() 
+    }, { merge: true });
     
-    loadUserData();
+    loadProfile(currentUser.uid); // Load self initially
     flatThrowsArray = [];
     splitIndices = [];
     renderScorecard(); 
@@ -113,140 +149,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// --- FRIENDS ENGINE ---
-const searchInput = document.getElementById('friend-search-input');
-const searchBtn = document.getElementById('friend-search-btn');
-const searchResults = document.getElementById('search-results');
-const friendsListContainer = document.getElementById('friends-list');
-
-// Search for a user
-searchBtn.addEventListener('click', async () => {
-  const searchTerm = searchInput.value.trim();
-  if (!searchTerm) return;
-  
-  searchResults.innerHTML = '<p style="color: var(--text-muted);">Searching...</p>';
-
-  try {
-    // Firestore prefix search for matching names (Case Sensitive based on how Google saved it)
-    const usersRef = collection(db, "users");
-    const q = query(usersRef, where("name", ">=", searchTerm), where("name", "<=", searchTerm + '\uf8ff'));
-    const querySnapshot = await getDocs(q);
-    
-    searchResults.innerHTML = '';
-    if (querySnapshot.empty) {
-      searchResults.innerHTML = '<p style="color: var(--text-muted);">No bowlers found.</p>';
-      return;
-    }
-
-    querySnapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      const uid = docSnap.id;
-      
-      // Don't show yourself in the search results
-      if (uid === currentUser.uid) return;
-
-      const isAlreadyFriend = currentUserFriends.includes(uid);
-      const photoSrc = data.customPhoto || data.defaultPhoto || '';
-
-      searchResults.innerHTML += `
-        <div class="friend-card">
-          <div class="friend-info">
-            <img src="${photoSrc}" alt="Avatar">
-            <div class="friend-details">
-              <h4>${data.name}</h4>
-              <p>Avg: ${data.stats?.average || 0} | High: ${data.stats?.highGame || 0}</p>
-            </div>
-          </div>
-          ${isAlreadyFriend 
-            ? `<button disabled class="add-friend-btn" style="background:#555;">Added</button>`
-            : `<button class="add-friend-btn" onclick="addFriend('${uid}')">Add</button>`
-          }
-        </div>
-      `;
-    });
-  } catch (error) {
-    console.error("Search Error:", error);
-    searchResults.innerHTML = '<p style="color: #e53935;">Error searching for users.</p>';
-  }
-});
-
-// Add a friend
-window.addFriend = async (friendUid) => {
-  try {
-    const userRef = doc(db, "users", currentUser.uid);
-    // arrayUnion prevents duplicates
-    await setDoc(userRef, { friends: arrayUnion(friendUid) }, { merge: true });
-    currentUserFriends.push(friendUid);
-    
-    // Clear search and reload list
-    searchInput.value = '';
-    searchResults.innerHTML = '<p style="color: #4caf50;">Friend added successfully!</p>';
-    setTimeout(() => { searchResults.innerHTML = ''; }, 2000);
-    loadFriendsList();
-  } catch (error) {
-    console.error("Error adding friend:", error);
-  }
-};
-
-// Remove a friend
-window.removeFriend = async (friendUid) => {
-  if(!confirm("Are you sure you want to remove this friend?")) return;
-  try {
-    const userRef = doc(db, "users", currentUser.uid);
-    await setDoc(userRef, { friends: arrayRemove(friendUid) }, { merge: true });
-    currentUserFriends = currentUserFriends.filter(id => id !== friendUid);
-    loadFriendsList();
-  } catch (error) {
-    console.error("Error removing friend:", error);
-  }
-};
-
-// Fetch and display friends leaderboard
-async function loadFriendsList() {
-  if (currentUserFriends.length === 0) {
-    friendsListContainer.innerHTML = '<p style="color: var(--text-muted);">You haven\'t added any friends yet.</p>';
-    return;
-  }
-
-  friendsListContainer.innerHTML = '<p style="color: var(--text-muted);">Loading leaderboard...</p>';
-  let friendsData = [];
-
-  try {
-    // Fetch data for each friend UID
-    for (const uid of currentUserFriends) {
-      const friendDoc = await getDoc(doc(db, "users", uid));
-      if (friendDoc.exists()) {
-        friendsData.push({ uid: uid, ...friendDoc.data() });
-      }
-    }
-
-    // Sort by Average Score descending (Leaderboard style!)
-    friendsData.sort((a, b) => (b.stats?.average || 0) - (a.stats?.average || 0));
-
-    friendsListContainer.innerHTML = '';
-    friendsData.forEach(f => {
-      const photoSrc = f.customPhoto || f.defaultPhoto || '';
-      friendsListContainer.innerHTML += `
-        <div class="friend-card">
-          <div class="friend-info">
-            <img src="${photoSrc}" alt="Avatar">
-            <div class="friend-details">
-              <h4>${f.name}</h4>
-              <p>Avg: ${f.stats?.average || 0} | High: ${f.stats?.highGame || 0}</p>
-            </div>
-          </div>
-          <button class="remove-friend-btn" onclick="removeFriend('${f.uid}')">Remove</button>
-        </div>
-      `;
-    });
-
-  } catch (error) {
-    console.error("Error loading friends:", error);
-    friendsListContainer.innerHTML = '<p style="color: #e53935;">Error loading friends list.</p>';
-  }
-}
-
-// --- LOAD DATA & CHART GENERATION ---
+// --- PROFILE LOADER (Self or Friend) ---
 const MASTER_ACHIEVEMENTS = [
   { id: '200 Club 🎯', desc: 'Score 200+' },
   { id: 'Clean Game 🧼', desc: 'No open frames' },
@@ -255,15 +158,35 @@ const MASTER_ACHIEVEMENTS = [
   { id: 'Split Converter 🎳', desc: 'Convert a split into a spare' }
 ];
 
-async function loadUserData() {
-  const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+document.getElementById('back-to-me-btn').addEventListener('click', () => {
+  loadProfile(currentUser.uid);
+});
+
+// Added to window so the onclick in the HTML string can access it
+window.viewFriendProfile = (friendUid) => {
+  loadProfile(friendUid);
+  switchTab('profile');
+};
+
+async function loadProfile(targetUid) {
+  const isMe = (targetUid === currentUser.uid);
+  
+  // Update UI Modes
+  document.getElementById('back-to-me-btn').style.display = isMe ? 'none' : 'inline-block';
+  document.getElementById('logout-btn').style.display = isMe ? 'block' : 'none';
+  document.getElementById('photo-overlay').style.display = isMe ? '' : 'none';
+  document.getElementById('photo-wrapper').style.pointerEvents = isMe ? 'auto' : 'none';
+
+  const userDoc = await getDoc(doc(db, "users", targetUid));
   if (userDoc.exists()) {
     const data = userDoc.data();
     
+    document.getElementById('user-name').innerText = data.name + (isMe ? "" : "'s Stats");
     document.getElementById('user-photo').src = data.customPhoto || data.defaultPhoto || '';
     
-    // Load friends array into memory
-    currentUserFriends = data.friends || [];
+    if (isMe) {
+      currentUserFriends = data.friends || [];
+    }
 
     let s = data.stats || {};
     document.getElementById('stat-avg').innerText = s.average || 0;
@@ -275,8 +198,8 @@ async function loadUserData() {
 
     let achData = data.achievements || {};
     if (Array.isArray(achData)) {
-      const migrated = {};
-      achData.forEach(ach => migrated[ach] = 1);
+      const migrated = {}; 
+      achData.forEach(ach => migrated[ach] = 1); 
       achData = migrated;
     }
 
@@ -302,7 +225,9 @@ function drawRadarChart(stats) {
   const firstBallWeb = stats.firstBallAvg ? (stats.firstBallAvg / 10) * 100 : 0;
   const fillRateWeb = stats.openFrameRate ? 100 - parseFloat(stats.openFrameRate) : 0;
   
-  let strikePct = 0; let sparePct = 0;
+  let strikePct = 0; 
+  let sparePct = 0;
+  
   if (stats.totalStrikes !== undefined) {
     strikePct = (stats.totalStrikes / stats.totalFirstThrows) * 100;
     sparePct = stats.totalSpareOpps > 0 ? (stats.totalSpares / stats.totalSpareOpps) * 100 : 0;
@@ -310,7 +235,9 @@ function drawRadarChart(stats) {
 
   const chartData = [avgWeb, highWeb, strikePct, sparePct, fillRateWeb, firstBallWeb];
 
-  if (radarChart) radarChart.destroy(); 
+  if (radarChart) {
+    radarChart.destroy(); 
+  }
 
   radarChart = new Chart(ctx, {
     type: 'radar',
@@ -326,38 +253,196 @@ function drawRadarChart(stats) {
       }]
     },
     options: {
-      responsive: true, maintainAspectRatio: false,
-      scales: {
-        r: {
-          angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
-          grid: { color: 'rgba(255, 255, 255, 0.1)' },
-          pointLabels: { color: '#aaaaaa', font: { size: 11 } },
-          ticks: { display: false, min: 0, max: 100 }
-        }
+      responsive: true, 
+      maintainAspectRatio: false,
+      scales: { 
+        r: { 
+          angleLines: { color: 'rgba(255, 255, 255, 0.1)' }, 
+          grid: { color: 'rgba(255, 255, 255, 0.1)' }, 
+          pointLabels: { color: '#aaaaaa', font: { size: 11 } }, 
+          ticks: { display: false, min: 0, max: 100 } 
+        } 
       },
       plugins: { legend: { display: false } }
     }
   });
 }
 
-// --- STATS & ACHIEVEMENT ENGINE ---
+// --- FRIENDS ENGINE ---
+const searchInput = document.getElementById('friend-search-input');
+const searchBtn = document.getElementById('friend-search-btn');
+const searchResults = document.getElementById('search-results');
+const friendsListContainer = document.getElementById('friends-list');
+
+searchBtn.addEventListener('click', async () => {
+  const searchTerm = searchInput.value.trim().toLowerCase();
+  if (!searchTerm) return;
+  
+  searchResults.innerHTML = '<p style="color: var(--text-muted);">Searching...</p>';
+
+  try {
+    const usersRef = collection(db, "users");
+    // Search by exact email
+    const q = query(usersRef, where("email", "==", searchTerm));
+    const querySnapshot = await getDocs(q);
+    
+    searchResults.innerHTML = '';
+    
+    if (querySnapshot.empty) {
+      searchResults.innerHTML = '<p style="color: var(--text-muted);">No bowler found with that email.</p>';
+      return;
+    }
+
+    querySnapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      const uid = docSnap.id;
+      
+      if (uid === currentUser.uid) {
+        searchResults.innerHTML = '<p style="color: var(--text-muted);">That is your email!</p>';
+        return;
+      }
+
+      const isAlreadyFriend = currentUserFriends.includes(uid);
+      const photoSrc = data.customPhoto || data.defaultPhoto || '';
+
+      // Stop propagation on the add button so it doesn't trigger the card click
+      searchResults.innerHTML += `
+        <div class="friend-card" onclick="viewFriendProfile('${uid}')">
+          <div class="friend-info">
+            <img src="${photoSrc}" alt="Avatar">
+            <div class="friend-details">
+              <h4>${data.name}</h4>
+              <p>Avg: ${data.stats?.average || 0} | High: ${data.stats?.highGame || 0}</p>
+            </div>
+          </div>
+          ${isAlreadyFriend 
+            ? `<button disabled class="add-friend-btn" style="background:#555;" onclick="event.stopPropagation()">Added</button>`
+            : `<button class="add-friend-btn" onclick="event.stopPropagation(); addFriend('${uid}')">Add</button>`
+          }
+        </div>
+      `;
+    });
+  } catch (error) {
+    console.error("Search Error:", error);
+    searchResults.innerHTML = '<p style="color: #e53935;">Error searching for users.</p>';
+  }
+});
+
+window.addFriend = async (friendUid) => {
+  try {
+    const userRef = doc(db, "users", currentUser.uid);
+    await setDoc(userRef, { friends: arrayUnion(friendUid) }, { merge: true });
+    
+    if (!currentUserFriends.includes(friendUid)) {
+      currentUserFriends.push(friendUid);
+    }
+    
+    searchInput.value = '';
+    searchResults.innerHTML = '<p style="color: #4caf50;">Friend added successfully!</p>';
+    setTimeout(() => { searchResults.innerHTML = ''; }, 2000);
+    
+    loadFriendsList();
+  } catch (error) { 
+    console.error("Error adding friend:", error); 
+  }
+};
+
+window.removeFriend = async (friendUid) => {
+  if(!confirm("Remove this friend?")) return;
+  try {
+    const userRef = doc(db, "users", currentUser.uid);
+    await setDoc(userRef, { friends: arrayRemove(friendUid) }, { merge: true });
+    
+    currentUserFriends = currentUserFriends.filter(id => id !== friendUid);
+    loadFriendsList();
+  } catch (error) { 
+    console.error("Error removing friend:", error); 
+  }
+};
+
+async function loadFriendsList() {
+  // Always make sure we have latest friends list from our DB
+  const myDoc = await getDoc(doc(db, "users", currentUser.uid));
+  if (myDoc.exists()) {
+    currentUserFriends = myDoc.data().friends || [];
+  }
+
+  if (currentUserFriends.length === 0) {
+    friendsListContainer.innerHTML = '<p style="color: var(--text-muted);">You haven\'t added any friends yet.</p>';
+    return;
+  }
+
+  friendsListContainer.innerHTML = '<p style="color: var(--text-muted);">Loading leaderboard...</p>';
+  let friendsData = [];
+
+  try {
+    for (const uid of currentUserFriends) {
+      const friendDoc = await getDoc(doc(db, "users", uid));
+      if (friendDoc.exists()) {
+        friendsData.push({ uid: uid, ...friendDoc.data() });
+      }
+    }
+
+    friendsData.sort((a, b) => (b.stats?.average || 0) - (a.stats?.average || 0));
+
+    friendsListContainer.innerHTML = '';
+    friendsData.forEach(f => {
+      const photoSrc = f.customPhoto || f.defaultPhoto || '';
+      friendsListContainer.innerHTML += `
+        <div class="friend-card" onclick="viewFriendProfile('${f.uid}')">
+          <div class="friend-info">
+            <img src="${photoSrc}" alt="Avatar">
+            <div class="friend-details">
+              <h4>${f.name}</h4>
+              <p>Avg: ${f.stats?.average || 0} | High: ${f.stats?.highGame || 0}</p>
+            </div>
+          </div>
+          <button class="remove-friend-btn" onclick="event.stopPropagation(); removeFriend('${f.uid}')">Remove</button>
+        </div>
+      `;
+    });
+  } catch (error) {
+    console.error("Error loading friends:", error);
+    friendsListContainer.innerHTML = '<p style="color: #e53935;">Error loading friends list.</p>';
+  }
+}
+
+// --- STATS & SCORECARD ENGINE ---
 function calculateGameScore(throws) {
-    let score = 0; let throwIndex = 0;
+    let score = 0; 
+    let throwIndex = 0;
+    
     for (let frame = 0; frame < 10; frame++) {
-        if (throws[throwIndex] === 10) { score += 10 + (throws[throwIndex + 1] || 0) + (throws[throwIndex + 2] || 0); throwIndex++; } 
-        else if ((throws[throwIndex] || 0) + (throws[throwIndex + 1] || 0) === 10) { score += 10 + (throws[throwIndex + 2] || 0); throwIndex += 2; } 
-        else { score += (throws[throwIndex] || 0) + (throws[throwIndex + 1] || 0); throwIndex += 2; }
+        if (throws[throwIndex] === 10) { 
+          score += 10 + (throws[throwIndex + 1] || 0) + (throws[throwIndex + 2] || 0); 
+          throwIndex++; 
+        } else if ((throws[throwIndex] || 0) + (throws[throwIndex + 1] || 0) === 10) { 
+          score += 10 + (throws[throwIndex + 2] || 0); 
+          throwIndex += 2; 
+        } else { 
+          score += (throws[throwIndex] || 0) + (throws[throwIndex + 1] || 0); 
+          throwIndex += 2; 
+        }
     }
     return score;
 }
 
 function groupThrowsIntoFrames(throws) {
-  let frames = []; let currentFrame = [];
+  let frames = []; 
+  let currentFrame = [];
+  
   for (let i = 0; i < throws.length; i++) {
     currentFrame.push(throws[i]);
-    if (frames.length < 9) { if (throws[i] === 10 || currentFrame.length === 2) { frames.push(currentFrame); currentFrame = []; } }
+    if (frames.length < 9) { 
+      if (throws[i] === 10 || currentFrame.length === 2) { 
+        frames.push(currentFrame); 
+        currentFrame = []; 
+      } 
+    }
   }
-  if (currentFrame.length > 0) frames.push(currentFrame);
+  if (currentFrame.length > 0) {
+    frames.push(currentFrame);
+  }
   return frames;
 }
 
@@ -367,12 +452,18 @@ function calculateNewStats(frames, currentStats, gameScore) {
 
   frames.forEach((frame, index) => {
     if (frame.length > 0 && index < 10) {
-      sessionFirstThrows++; sessionFirstBallPins += frame[0];
-      if (frame[0] === 10) sessionStrikes++;
-      else {
+      sessionFirstThrows++; 
+      sessionFirstBallPins += frame[0];
+      
+      if (frame[0] === 10) {
+        sessionStrikes++;
+      } else {
         sessionSpareOpps++;
-        if (frame.length > 1 && frame[0] + frame[1] === 10) sessionSpares++;
-        else if (frame.length > 1) sessionOpenFrames++; 
+        if (frame.length > 1 && frame[0] + frame[1] === 10) {
+          sessionSpares++;
+        } else if (frame.length > 1) {
+          sessionOpenFrames++; 
+        }
       }
     }
   });
@@ -400,22 +491,22 @@ function calculateNewStats(frames, currentStats, gameScore) {
 function checkIfSplit(standingPins) {
   if (standingPins.includes(1) || standingPins.length < 2) return false;
   
-  const edges = {
-    2: [4, 5, 8], 3: [5, 6, 9], 4: [2, 7, 8], 5: [2, 3, 8, 9],
-    6: [3, 9, 10], 7: [4], 8: [2, 4, 5], 9: [3, 5, 6], 10: [6]
+  const edges = { 
+    2: [4, 5, 8], 3: [5, 6, 9], 4: [2, 7, 8], 5: [2, 3, 8, 9], 
+    6: [3, 9, 10], 7: [4], 8: [2, 4, 5], 9: [3, 5, 6], 10: [6] 
   };
   
-  let visited = new Set();
-  let stack = [standingPins[0]];
+  let visited = new Set(); 
+  let stack = [standingPins[0]]; 
   visited.add(standingPins[0]);
   
   while(stack.length > 0) {
     let current = stack.pop();
     if (edges[current]) {
       edges[current].forEach(neighbor => {
-        if (standingPins.includes(neighbor) && !visited.has(neighbor)) {
-          visited.add(neighbor);
-          stack.push(neighbor);
+        if (standingPins.includes(neighbor) && !visited.has(neighbor)) { 
+          visited.add(neighbor); 
+          stack.push(neighbor); 
         }
       });
     }
@@ -432,18 +523,27 @@ function checkAchievements(flatThrows, frames, score, splitIdxArray, currentAchi
   let isClean = true;
   for (let i = 0; i < 10; i++) {
     const f = frames[i];
-    if (!f || (f[0] !== 10 && (f.length < 2 || f[0] + f[1] !== 10))) { isClean = false; break; }
+    if (!f || (f[0] !== 10 && (f.length < 2 || f[0] + f[1] !== 10))) { 
+      isClean = false; 
+      break; 
+    }
   }
   if (isClean && frames.length === 10) addAch('Clean Game 🧼');
 
   let strikeStreak = 0;
   for (let t of flatThrows) {
-    if (t === 10) { strikeStreak++; if (strikeStreak === 3) addAch('Turkey 🦃'); } 
-    else { strikeStreak = 0; }
+    if (t === 10) { 
+      strikeStreak++; 
+      if (strikeStreak === 3) addAch('Turkey 🦃'); 
+    } else { 
+      strikeStreak = 0; 
+    }
   }
 
   const tenth = frames[9];
-  if (tenth && tenth[0] === 10 && tenth[1] === 10 && tenth[2] === 10) addAch('Clutch Finisher 🧊');
+  if (tenth && tenth[0] === 10 && tenth[1] === 10 && tenth[2] === 10) {
+    addAch('Clutch Finisher 🧊');
+  }
 
   splitIdxArray.forEach(idx => {
     if (flatThrows[idx + 1] === 10 - flatThrows[idx]) {
@@ -459,33 +559,54 @@ function renderScorecard() {
   const container = document.getElementById('scorecard');
   container.innerHTML = '';
   const frames = groupThrowsIntoFrames(flatThrowsArray);
-  let runningScore = 0; let throwIdx = 0;
+  let runningScore = 0; 
+  let throwIdx = 0;
 
   for (let i = 1; i <= 10; i++) {
     const frameData = frames[i - 1] || [];
-    let t1 = '', t2 = '', t3 = ''; let frameScoreDisplay = '';
+    let t1 = '', t2 = '', t3 = ''; 
+    let frameScoreDisplay = '';
 
     if (frameData.length > 0) {
       if (i < 10) {
-        let t1val = flatThrowsArray[throwIdx]; let t2val = flatThrowsArray[throwIdx + 1];
-        if (t1val === 10) { t2 = 'X'; throwIdx += 1; } 
-        else { 
+        let t1val = flatThrowsArray[throwIdx]; 
+        let t2val = flatThrowsArray[throwIdx + 1];
+        
+        if (t1val === 10) { 
+          t2 = 'X'; 
+          throwIdx += 1; 
+        } else { 
           t1 = t1val === 0 ? '-' : t1val; 
-          if (splitIndices.includes(throwIdx)) t1 = `<span class="split-circle">${t1}</span>`;
-          
-          if (frameData.length > 1) { t2 = (t1val + t2val === 10) ? '/' : (t2val === 0 ? '-' : t2val); } 
+          if (splitIndices.includes(throwIdx)) {
+            t1 = `<span class="split-circle">${t1}</span>`;
+          }
+          if (frameData.length > 1) { 
+            t2 = (t1val + t2val === 10) ? '/' : (t2val === 0 ? '-' : t2val); 
+          } 
           throwIdx += 2; 
         }
         
-        if ((t2 === 'X' && flatThrowsArray[throwIdx] !== undefined && flatThrowsArray[throwIdx+1] !== undefined) || (t2 === '/' && flatThrowsArray[throwIdx] !== undefined) || (t2 !== 'X' && t2 !== '/' && frameData.length === 2)) {
+        // Calculate running score if frame is resolved
+        if ((t2 === 'X' && flatThrowsArray[throwIdx] !== undefined && flatThrowsArray[throwIdx+1] !== undefined) || 
+            (t2 === '/' && flatThrowsArray[throwIdx] !== undefined) || 
+            (t2 !== 'X' && t2 !== '/' && frameData.length === 2)) {
+            
             let fScore = 0;
-            if (t2 === 'X') fScore = 10 + flatThrowsArray[throwIdx] + flatThrowsArray[throwIdx+1];
-            else if (t2 === '/') fScore = 10 + flatThrowsArray[throwIdx];
-            else fScore = t1val + t2val;
-            runningScore += fScore; frameScoreDisplay = runningScore;
+            if (t2 === 'X') {
+              fScore = 10 + flatThrowsArray[throwIdx] + flatThrowsArray[throwIdx+1];
+            } else if (t2 === '/') {
+              fScore = 10 + flatThrowsArray[throwIdx];
+            } else {
+              fScore = t1val + t2val;
+            }
+            runningScore += fScore; 
+            frameScoreDisplay = runningScore;
         }
       } else {
-        let t1val = flatThrowsArray[throwIdx]; let t2val = flatThrowsArray[throwIdx + 1]; let t3val = flatThrowsArray[throwIdx + 2];
+        // 10th Frame Logic
+        let t1val = flatThrowsArray[throwIdx]; 
+        let t2val = flatThrowsArray[throwIdx + 1]; 
+        let t3val = flatThrowsArray[throwIdx + 2];
         
         if (t1val !== undefined) {
           t1 = t1val === 10 ? 'X' : (t1val === 0 ? '-' : t1val);
@@ -501,17 +622,30 @@ function renderScorecard() {
         }
 
         if (flatThrowsArray.length >= throwIdx + (t1val === 10 || t1val+t2val===10 ? 3 : 2)) {
-          runningScore += calculateGameScore(flatThrowsArray.slice(throwIdx)); frameScoreDisplay = calculateGameScore(flatThrowsArray); 
+          runningScore += calculateGameScore(flatThrowsArray.slice(throwIdx)); 
+          frameScoreDisplay = calculateGameScore(flatThrowsArray); 
         }
       }
     }
 
-    container.innerHTML += `<div class="score-frame"><div class="frame-num">${i}</div><div class="frame-throws"><div class="throw-box">${t1}</div><div class="throw-box">${t2}</div>${i === 10 ? `<div class="throw-box">${t3}</div>` : ''}</div><div class="frame-score">${frameScoreDisplay}</div></div>`;
+    container.innerHTML += `
+      <div class="score-frame">
+        <div class="frame-num">${i}</div>
+        <div class="frame-throws">
+          <div class="throw-box">${t1}</div>
+          <div class="throw-box">${t2}</div>
+          ${i === 10 ? `<div class="throw-box">${t3}</div>` : ''}
+        </div>
+        <div class="frame-score">${frameScoreDisplay}</div>
+      </div>
+    `;
   }
 }
 
 // --- PIN DECK LOGIC ---
-let currentFrame = 1; let currentThrow = 1; let pinsStandingThisFrame = 10;
+let currentFrame = 1; 
+let currentThrow = 1; 
+let pinsStandingThisFrame = 10;
 let flatThrowsArray = [];
 let splitIndices = []; 
 
@@ -522,19 +656,33 @@ const gameFeedback = document.getElementById('game-feedback');
 const strikeBtn = document.getElementById('strike-btn');
 const spareBtn = document.getElementById('spare-btn');
 
-pins.forEach(pin => { pin.addEventListener('click', () => { if (!pin.classList.contains('locked-down')) pin.classList.toggle('down'); }); });
+pins.forEach(pin => { 
+  pin.addEventListener('click', () => { 
+    if (!pin.classList.contains('locked-down')) {
+      pin.classList.toggle('down'); 
+    }
+  }); 
+});
 
-function resetPins(fullReset = false) { pins.forEach(pin => { if (fullReset) pin.classList.remove('down', 'locked-down'); else if (pin.classList.contains('down')) pin.classList.add('locked-down'); }); }
+function resetPins(fullReset = false) { 
+  pins.forEach(pin => { 
+    if (fullReset) {
+      pin.classList.remove('down', 'locked-down'); 
+    } else if (pin.classList.contains('down')) {
+      pin.classList.add('locked-down'); 
+    }
+  }); 
+}
 
 function processThrow(pinsFallen) {
   const isFirstThrowOfRack = (pinsStandingThisFrame === 10);
-  
   flatThrowsArray.push(pinsFallen); 
   pinsStandingThisFrame -= pinsFallen; 
   
   if (isFirstThrowOfRack && pinsFallen > 0 && pinsFallen < 10) {
-    let standing = [];
+    let standing = []; 
     document.querySelectorAll('.pin:not(.down)').forEach(p => standing.push(parseInt(p.dataset.pin)));
+    
     if (checkIfSplit(standing)) {
       splitIndices.push(flatThrowsArray.length - 1);
     }
@@ -543,43 +691,109 @@ function processThrow(pinsFallen) {
   renderScorecard(); 
 
   if (currentFrame < 10) {
-    if (pinsStandingThisFrame === 0 || currentThrow === 2) advanceFrame();
-    else { currentThrow = 2; resetPins(false); updateUI(); }
+    if (pinsStandingThisFrame === 0 || currentThrow === 2) {
+      advanceFrame();
+    } else { 
+      currentThrow = 2; 
+      resetPins(false); 
+      updateUI(); 
+    }
   } else {
-    if (currentThrow === 1) { currentThrow = 2; if (pinsStandingThisFrame === 0) { pinsStandingThisFrame = 10; resetPins(true); } else resetPins(false); updateUI(); } 
-    else if (currentThrow === 2) {
-      if (flatThrowsArray[flatThrowsArray.length - 2] === 10 || pinsStandingThisFrame === 0) { currentThrow = 3; if (pinsStandingThisFrame === 0) { pinsStandingThisFrame = 10; resetPins(true); } else resetPins(false); updateUI(); } 
-      else finishGame();
-    } else finishGame();
+    // 10th Frame
+    if (currentThrow === 1) { 
+      currentThrow = 2; 
+      if (pinsStandingThisFrame === 0) { 
+        pinsStandingThisFrame = 10; 
+        resetPins(true); 
+      } else {
+        resetPins(false); 
+      }
+      updateUI(); 
+    } else if (currentThrow === 2) {
+      if (flatThrowsArray[flatThrowsArray.length - 2] === 10 || pinsStandingThisFrame === 0) { 
+        currentThrow = 3; 
+        if (pinsStandingThisFrame === 0) { 
+          pinsStandingThisFrame = 10; 
+          resetPins(true); 
+        } else {
+          resetPins(false); 
+        }
+        updateUI(); 
+      } else {
+        finishGame();
+      }
+    } else {
+      finishGame();
+    }
   }
 }
 
-function advanceFrame() { currentFrame++; currentThrow = 1; pinsStandingThisFrame = 10; resetPins(true); updateUI(); }
+function advanceFrame() { 
+  currentFrame++; 
+  currentThrow = 1; 
+  pinsStandingThisFrame = 10; 
+  resetPins(true); 
+  updateUI(); 
+}
+
 function updateUI() { 
-  frameDisplay.innerText = `Frame: ${currentFrame}`; throwDisplay.innerText = `Throw: ${currentThrow}`; 
-  if (pinsStandingThisFrame === 10) { strikeBtn.disabled = false; spareBtn.disabled = true; } else { strikeBtn.disabled = true; spareBtn.disabled = false; }
+  frameDisplay.innerText = `Frame: ${currentFrame}`; 
+  throwDisplay.innerText = `Throw: ${currentThrow}`; 
+  
+  if (pinsStandingThisFrame === 10) { 
+    strikeBtn.disabled = false; 
+    spareBtn.disabled = true; 
+  } else { 
+    strikeBtn.disabled = true; 
+    spareBtn.disabled = false; 
+  }
 }
 
 document.getElementById('gutter-btn').addEventListener('click', () => processThrow(0));
-document.getElementById('record-throw-btn').addEventListener('click', () => processThrow(document.querySelectorAll('.pin.down:not(.locked-down)').length));
-strikeBtn.addEventListener('click', () => { document.querySelectorAll('.pin:not(.down)').forEach(p => p.classList.add('down')); processThrow(pinsStandingThisFrame); });
-spareBtn.addEventListener('click', () => { document.querySelectorAll('.pin:not(.down)').forEach(p => p.classList.add('down')); processThrow(pinsStandingThisFrame); });
+
+document.getElementById('record-throw-btn').addEventListener('click', () => {
+  processThrow(document.querySelectorAll('.pin.down:not(.locked-down)').length);
+});
+
+strikeBtn.addEventListener('click', () => { 
+  document.querySelectorAll('.pin:not(.down)').forEach(p => p.classList.add('down')); 
+  processThrow(pinsStandingThisFrame); 
+});
+
+spareBtn.addEventListener('click', () => { 
+  document.querySelectorAll('.pin:not(.down)').forEach(p => p.classList.add('down')); 
+  processThrow(pinsStandingThisFrame); 
+});
 
 async function finishGame() {
-  document.getElementById('record-throw-btn').disabled = true; document.getElementById('gutter-btn').disabled = true; strikeBtn.disabled = true; spareBtn.disabled = true;
+  document.getElementById('record-throw-btn').disabled = true; 
+  document.getElementById('gutter-btn').disabled = true; 
+  strikeBtn.disabled = true; 
+  spareBtn.disabled = true;
   gameFeedback.innerText = "Saving game...";
 
   const score = calculateGameScore(flatThrowsArray);
   const frames = groupThrowsIntoFrames(flatThrowsArray);
 
   try {
-    await addDoc(collection(db, "games"), { userId: currentUser.uid, date: new Date(), throws: flatThrowsArray, splits: splitIndices, score: score });
+    await addDoc(collection(db, "games"), { 
+      userId: currentUser.uid, 
+      date: new Date(), 
+      throws: flatThrowsArray, 
+      splits: splitIndices, 
+      score: score 
+    });
     
     const userRef = doc(db, "users", currentUser.uid);
     const userSnap = await getDoc(userRef);
     let userData = userSnap.exists() ? userSnap.data() : {};
     
-    if (Array.isArray(userData.achievements)) { const migrated = {}; userData.achievements.forEach(ach => migrated[ach] = 1); userData.achievements = migrated; }
+    // Safety check for old string arrays
+    if (Array.isArray(userData.achievements)) { 
+      const migrated = {}; 
+      userData.achievements.forEach(ach => migrated[ach] = 1); 
+      userData.achievements = migrated; 
+    }
 
     const newStats = calculateNewStats(frames, userData.stats || {}, score);
     const newAchievements = checkAchievements(flatThrowsArray, frames, score, splitIndices, userData.achievements || {});
@@ -587,13 +801,25 @@ async function finishGame() {
     await setDoc(userRef, { stats: newStats, achievements: newAchievements }, { merge: true });
     
     gameFeedback.innerText = `Game Saved! Score: ${score}`;
-    loadUserData(); 
-  } catch (err) { console.error("Save Error:", err); gameFeedback.innerText = "Error saving game."; }
+    loadProfile(currentUser.uid); 
+  } catch (err) { 
+    console.error("Save Error:", err); 
+    gameFeedback.innerText = "Error saving game."; 
+  }
 
   setTimeout(() => {
-    flatThrowsArray = []; splitIndices = []; currentFrame = 1; currentThrow = 1; pinsStandingThisFrame = 10;
-    resetPins(true); updateUI(); renderScorecard();
-    document.getElementById('record-throw-btn').disabled = false; document.getElementById('gutter-btn').disabled = false;
-    gameFeedback.innerText = ""; switchTab('profile'); 
+    flatThrowsArray = []; 
+    splitIndices = []; 
+    currentFrame = 1; 
+    currentThrow = 1; 
+    pinsStandingThisFrame = 10;
+    resetPins(true); 
+    updateUI(); 
+    renderScorecard();
+    
+    document.getElementById('record-throw-btn').disabled = false; 
+    document.getElementById('gutter-btn').disabled = false;
+    gameFeedback.innerText = ""; 
+    switchTab('profile'); 
   }, 3500);
 }
