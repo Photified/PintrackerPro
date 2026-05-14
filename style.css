@@ -149,30 +149,32 @@ img#user-photo {
   margin-bottom: 1.5rem; 
   background: var(--surface); 
   border-radius: 8px; 
-  padding: 6px; 
+  padding: 4px; /* Reduced padding to maximize screen width */
   box-sizing: border-box; 
   box-shadow: 0 4px 8px rgba(0,0,0,0.3); 
+  overflow-x: hidden; /* Force squish instead of scroll */
 }
 
 .scorecard { 
   display: flex; 
   width: 100%; 
-  border: 2px solid #1a4a85; 
+  border: 1px solid #1a4a85; /* Thinned borders */
   background: #020e1c; 
   border-radius: 4px; 
   overflow: hidden; 
 }
 
 .score-frame { 
-  flex: 1; 
-  border-right: 2px solid #1a4a85; 
+  flex: 1 1 0%; /* Explicitly tell it to scale from 0 */
+  min-width: 0; /* CRITICAL: Forces flex items to shrink below content size */
+  border-right: 1px solid #1a4a85; /* Thinned borders */
   display: flex; 
   flex-direction: column; 
 }
 
 .score-frame:last-child { 
   border-right: none; 
-  flex: 1.5; 
+  flex: 1.5 1 0%; /* 10th frame needs slightly more room */
 } 
 
 .frame-num { 
@@ -180,25 +182,28 @@ img#user-photo {
   font-size: clamp(0.5rem, 2vw, 0.7rem); 
   font-weight: bold; 
   border-bottom: 1px solid #1a4a85; 
-  padding: 3px 0; 
+  padding: 2px 0; 
   color: var(--text-muted); 
+  white-space: nowrap;
 }
 
 .frame-throws { 
   display: flex; 
-  height: 25px; 
+  height: 22px; /* Tighter height */
   border-bottom: 1px solid #1a4a85; 
 }
 
 .throw-box { 
-  flex: 1; 
+  flex: 1 1 0%; 
+  min-width: 0; /* CRITICAL: Forces flex items to shrink below content size */
   display: flex; 
   justify-content: center; 
   align-items: center; 
   font-weight: bold; 
-  font-size: clamp(0.6rem, 2.5vw, 0.9rem); 
+  font-size: clamp(0.6rem, 2vw, 0.9rem); 
   border-left: 1px solid #1a4a85; 
   color: white;
+  padding: 0; 
 }
 
 .throw-box:first-child { 
@@ -206,12 +211,12 @@ img#user-photo {
 }
 
 .frame-score { 
-  height: 30px; 
+  height: 25px; /* Tighter height */
   display: flex; 
   justify-content: center; 
   align-items: center; 
   font-weight: bold; 
-  font-size: clamp(0.7rem, 3vw, 1.1rem); 
+  font-size: clamp(0.7rem, 2.5vw, 1.1rem); 
   color: var(--primary); 
 }
 
@@ -413,14 +418,14 @@ img#user-photo {
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  width: clamp(14px, 3vw, 22px);
-  height: clamp(14px, 3vw, 22px);
+  width: clamp(12px, 2.5vw, 20px);
+  height: clamp(12px, 2.5vw, 20px);
   border: 1px solid var(--primary);
   border-radius: 50%;
   color: var(--primary);
   line-height: 1;
   background: rgba(255, 111, 0, 0.1);
-  font-size: clamp(0.5rem, 2vw, 0.9rem);
+  font-size: clamp(0.5rem, 1.5vw, 0.8rem);
 }
 
 /* Ghosted Achievements */
