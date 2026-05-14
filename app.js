@@ -1,4 +1,8 @@
-import { auth, db, provider, signInWithPopup, onAuthStateChanged, signOut, doc, setDoc, getDoc, collection, addDoc } from './firebase-setup.js';
+import { 
+  auth, db, provider, signInWithPopup, onAuthStateChanged, signOut, 
+  doc, setDoc, getDoc, collection, addDoc,
+  query, where, getDocs, arrayUnion, arrayRemove
+} from './firebase-setup.js';
 
 // --- UI ELEMENTS & NAV ---
 const loginSection = document.getElementById('login-section');
@@ -6,10 +10,12 @@ const appWrapper = document.getElementById('app-wrapper');
 const mainNav = document.getElementById('main-nav');
 let currentUser = null;
 let radarChart = null; 
+let currentUserFriends = []; // Stores the current user's friend UIDs
 
 const tabs = {
   profile: { btn: document.getElementById('tab-profile'), content: document.getElementById('profile-section') },
-  play: { btn: document.getElementById('tab-play'), content: document.getElementById('play-section') }
+  play: { btn: document.getElementById('tab-play'), content: document.getElementById('play-section') },
+  friends: { btn: document.getElementById('tab-friends'), content: document.getElementById('friends-section') }
 };
 
 function switchTab(tabName) {
@@ -22,6 +28,10 @@ function switchTab(tabName) {
 }
 tabs.profile.btn.addEventListener('click', () => switchTab('profile'));
 tabs.play.btn.addEventListener('click', () => switchTab('play'));
+tabs.friends.btn.addEventListener('click', () => {
+  switchTab('friends');
+  loadFriendsList(); // Refresh list when tab is opened
+});
 
 // --- MODAL & PWA ---
 const helpModal = document.getElementById('help-modal');
@@ -87,7 +97,9 @@ onAuthStateChanged(auth, async (user) => {
     appWrapper.style.display = 'block';
     mainNav.style.display = 'flex';
     document.getElementById('user-name').innerText = user.displayName;
-    await setDoc(doc(db, "users", user.uid), { name: user.displayName, lastLogin: new Date() }, { merge: true });
+    
+    // Save standard Google photo URL as a fallback if they don't have a custom one
+    await setDoc(doc(db, "users", user.uid), { name: user.displayName, defaultPhoto: user.photoURL, lastLogin: new Date() }, { merge: true });
     
     loadUserData();
     flatThrowsArray = [];
@@ -100,6 +112,139 @@ onAuthStateChanged(auth, async (user) => {
     mainNav.style.display = 'none';
   }
 });
+
+// --- FRIENDS ENGINE ---
+const searchInput = document.getElementById('friend-search-input');
+const searchBtn = document.getElementById('friend-search-btn');
+const searchResults = document.getElementById('search-results');
+const friendsListContainer = document.getElementById('friends-list');
+
+// Search for a user
+searchBtn.addEventListener('click', async () => {
+  const searchTerm = searchInput.value.trim();
+  if (!searchTerm) return;
+  
+  searchResults.innerHTML = '<p style="color: var(--text-muted);">Searching...</p>';
+
+  try {
+    // Firestore prefix search for matching names (Case Sensitive based on how Google saved it)
+    const usersRef = collection(db, "users");
+    const q = query(usersRef, where("name", ">=", searchTerm), where("name", "<=", searchTerm + '\uf8ff'));
+    const querySnapshot = await getDocs(q);
+    
+    searchResults.innerHTML = '';
+    if (querySnapshot.empty) {
+      searchResults.innerHTML = '<p style="color: var(--text-muted);">No bowlers found.</p>';
+      return;
+    }
+
+    querySnapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      const uid = docSnap.id;
+      
+      // Don't show yourself in the search results
+      if (uid === currentUser.uid) return;
+
+      const isAlreadyFriend = currentUserFriends.includes(uid);
+      const photoSrc = data.customPhoto || data.defaultPhoto || '';
+
+      searchResults.innerHTML += `
+        <div class="friend-card">
+          <div class="friend-info">
+            <img src="${photoSrc}" alt="Avatar">
+            <div class="friend-details">
+              <h4>${data.name}</h4>
+              <p>Avg: ${data.stats?.average || 0} | High: ${data.stats?.highGame || 0}</p>
+            </div>
+          </div>
+          ${isAlreadyFriend 
+            ? `<button disabled class="add-friend-btn" style="background:#555;">Added</button>`
+            : `<button class="add-friend-btn" onclick="addFriend('${uid}')">Add</button>`
+          }
+        </div>
+      `;
+    });
+  } catch (error) {
+    console.error("Search Error:", error);
+    searchResults.innerHTML = '<p style="color: #e53935;">Error searching for users.</p>';
+  }
+});
+
+// Add a friend
+window.addFriend = async (friendUid) => {
+  try {
+    const userRef = doc(db, "users", currentUser.uid);
+    // arrayUnion prevents duplicates
+    await setDoc(userRef, { friends: arrayUnion(friendUid) }, { merge: true });
+    currentUserFriends.push(friendUid);
+    
+    // Clear search and reload list
+    searchInput.value = '';
+    searchResults.innerHTML = '<p style="color: #4caf50;">Friend added successfully!</p>';
+    setTimeout(() => { searchResults.innerHTML = ''; }, 2000);
+    loadFriendsList();
+  } catch (error) {
+    console.error("Error adding friend:", error);
+  }
+};
+
+// Remove a friend
+window.removeFriend = async (friendUid) => {
+  if(!confirm("Are you sure you want to remove this friend?")) return;
+  try {
+    const userRef = doc(db, "users", currentUser.uid);
+    await setDoc(userRef, { friends: arrayRemove(friendUid) }, { merge: true });
+    currentUserFriends = currentUserFriends.filter(id => id !== friendUid);
+    loadFriendsList();
+  } catch (error) {
+    console.error("Error removing friend:", error);
+  }
+};
+
+// Fetch and display friends leaderboard
+async function loadFriendsList() {
+  if (currentUserFriends.length === 0) {
+    friendsListContainer.innerHTML = '<p style="color: var(--text-muted);">You haven\'t added any friends yet.</p>';
+    return;
+  }
+
+  friendsListContainer.innerHTML = '<p style="color: var(--text-muted);">Loading leaderboard...</p>';
+  let friendsData = [];
+
+  try {
+    // Fetch data for each friend UID
+    for (const uid of currentUserFriends) {
+      const friendDoc = await getDoc(doc(db, "users", uid));
+      if (friendDoc.exists()) {
+        friendsData.push({ uid: uid, ...friendDoc.data() });
+      }
+    }
+
+    // Sort by Average Score descending (Leaderboard style!)
+    friendsData.sort((a, b) => (b.stats?.average || 0) - (a.stats?.average || 0));
+
+    friendsListContainer.innerHTML = '';
+    friendsData.forEach(f => {
+      const photoSrc = f.customPhoto || f.defaultPhoto || '';
+      friendsListContainer.innerHTML += `
+        <div class="friend-card">
+          <div class="friend-info">
+            <img src="${photoSrc}" alt="Avatar">
+            <div class="friend-details">
+              <h4>${f.name}</h4>
+              <p>Avg: ${f.stats?.average || 0} | High: ${f.stats?.highGame || 0}</p>
+            </div>
+          </div>
+          <button class="remove-friend-btn" onclick="removeFriend('${f.uid}')">Remove</button>
+        </div>
+      `;
+    });
+
+  } catch (error) {
+    console.error("Error loading friends:", error);
+    friendsListContainer.innerHTML = '<p style="color: #e53935;">Error loading friends list.</p>';
+  }
+}
 
 // --- LOAD DATA & CHART GENERATION ---
 const MASTER_ACHIEVEMENTS = [
@@ -115,7 +260,10 @@ async function loadUserData() {
   if (userDoc.exists()) {
     const data = userDoc.data();
     
-    document.getElementById('user-photo').src = data.customPhoto || currentUser.photoURL;
+    document.getElementById('user-photo').src = data.customPhoto || data.defaultPhoto || '';
+    
+    // Load friends array into memory
+    currentUserFriends = data.friends || [];
 
     let s = data.stats || {};
     document.getElementById('stat-avg').innerText = s.average || 0;
@@ -252,7 +400,6 @@ function calculateNewStats(frames, currentStats, gameScore) {
 function checkIfSplit(standingPins) {
   if (standingPins.includes(1) || standingPins.length < 2) return false;
   
-  // Defines which pins are adjacent to each other.
   const edges = {
     2: [4, 5, 8], 3: [5, 6, 9], 4: [2, 7, 8], 5: [2, 3, 8, 9],
     6: [3, 9, 10], 7: [4], 8: [2, 4, 5], 9: [3, 5, 6], 10: [6]
@@ -273,7 +420,6 @@ function checkIfSplit(standingPins) {
       });
     }
   }
-  // If we couldn't connect all standing pins together, it's a split!
   return visited.size !== standingPins.length;
 }
 
@@ -299,9 +445,7 @@ function checkAchievements(flatThrows, frames, score, splitIdxArray, currentAchi
   const tenth = frames[9];
   if (tenth && tenth[0] === 10 && tenth[1] === 10 && tenth[2] === 10) addAch('Clutch Finisher 🧊');
 
-  // Check for Split Conversions
   splitIdxArray.forEach(idx => {
-    // If the throw immediately after the split knocked down all remaining pins
     if (flatThrows[idx + 1] === 10 - flatThrows[idx]) {
       addAch('Split Converter 🎳');
     }
@@ -369,7 +513,7 @@ function renderScorecard() {
 // --- PIN DECK LOGIC ---
 let currentFrame = 1; let currentThrow = 1; let pinsStandingThisFrame = 10;
 let flatThrowsArray = [];
-let splitIndices = []; // Tracks which throws resulted in a split
+let splitIndices = []; 
 
 const pins = document.querySelectorAll('.pin');
 const frameDisplay = document.getElementById('current-frame-display');
@@ -388,7 +532,6 @@ function processThrow(pinsFallen) {
   flatThrowsArray.push(pinsFallen); 
   pinsStandingThisFrame -= pinsFallen; 
   
-  // Check for split right after the throw
   if (isFirstThrowOfRack && pinsFallen > 0 && pinsFallen < 10) {
     let standing = [];
     document.querySelectorAll('.pin:not(.down)').forEach(p => standing.push(parseInt(p.dataset.pin)));

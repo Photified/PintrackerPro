@@ -15,6 +15,7 @@
     <nav id="main-nav" style="display: none;">
       <button id="tab-profile" class="nav-btn active">Profile</button>
       <button id="tab-play" class="nav-btn">Play</button>
+      <button id="tab-friends" class="nav-btn">Friends</button>
       <button id="tab-help" class="nav-btn">Help</button>
     </nav>
   </header>
@@ -92,6 +93,25 @@
           <p id="game-feedback"></p>
         </div>
       </section>
+
+      <section id="friends-section" class="tab-content">
+        <div class="profile-card">
+          <h3>Find a Bowler</h3>
+          <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <input type="text" id="friend-search-input" placeholder="Search by exact name..." style="margin-top: 0; flex: 1;">
+            <button id="friend-search-btn" style="margin-top: 0; width: auto;">Search</button>
+          </div>
+          <div id="search-results" style="text-align: left;"></div>
+        </div>
+
+        <div class="log-game-card">
+          <h3>My Friends</h3>
+          <div id="friends-list" style="display: flex; flex-direction: column; gap: 10px;">
+            <p style="color: var(--text-muted);">You haven't added any friends yet.</p>
+          </div>
+        </div>
+      </section>
+
     </div>
   </main>
 
@@ -102,6 +122,7 @@
       <ul style="text-align: left; line-height: 1.6;">
         <li>Tap the pins that you knocked down on the lane.</li>
         <li>Click <b>Record Throw</b> to lock them in.</li>
+        <li>Splits are automatically calculated and circled on the scorecard!</li>
       </ul>
       <hr style="border-color: #333; margin: 20px 0;">
       <h3>App Settings</h3>
@@ -109,7 +130,11 @@
     </div>
   </div>
 
-  <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(err => console.error(err));
+    }
+  </script>
   <script type="module" src="app.js"></script>
 </body>
 </html>
