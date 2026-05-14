@@ -136,20 +136,31 @@
   <div id="help-modal" class="modal">
     <div class="modal-content">
       <span class="close-modal" id="close-help">&times;</span>
-      <h2 style="margin-top: 0;">How to Play</h2>
+      <h2 style="margin-top: 0; margin-bottom: 15px;">Help & Settings</h2>
       
-      <div class="help-grid">
-        <div class="help-item"><span>🎳</span><p><b>Tap Pins:</b> Select knocked down pins.</p></div>
-        <div class="help-item"><span>✅</span><p><b>Record:</b> Tap Record Throw to save.</p></div>
-        <div class="help-item"><span>⚡</span><p><b>Shortcuts:</b> Use Strike/Spare buttons.</p></div>
-        <div class="help-item"><span>⭕</span><p><b>Splits:</b> Auto-circled on scorecard.</p></div>
-        <div class="help-item"><span>🏅</span><p><b>Badges:</b> Earn milestone achievements.</p></div>
-        <div class="help-item"><span>🤝</span><p><b>Friends:</b> Search by email to compare.</p></div>
+      <div class="help-section">
+        <h3>Scoring & Controls</h3>
+        <p><b>Tap Pins:</b> Select knocked down pins.</p>
+        <p><b>Record:</b> Tap 'Record Throw' to save.</p>
+        <p><b>Shortcuts:</b> Use Strike/Spare buttons.</p>
+        <p><b>Splits:</b> Auto-circled on scorecard.</p>
       </div>
 
-      <hr style="border-color: rgba(255,255,255,0.1); margin: 20px 0;">
-      <h3 style="margin-top: 0; margin-bottom: 15px;">App Settings</h3>
-      <button id="install-btn" style="display: none; background-color: #4caf50;">Install App to Home Screen</button>
+      <div class="help-section">
+        <h3>Badges & Stats</h3>
+        <p>Earn milestone achievements like the '200 Club' or a 'Clean Game' and track your bowling average over time.</p>
+      </div>
+
+      <div class="help-section">
+        <h3>Friends</h3>
+        <p>Search friends by exact email to build your leaderboard and compare stats.</p>
+      </div>
+
+      <div class="help-section" id="settings-section">
+        <h3>App Settings</h3>
+        <button id="install-btn" style="display: none; background-color: #4caf50;">Install App to Home Screen</button>
+        <p id="install-hint" style="color: var(--text-muted); font-size: 0.8rem; margin-top: 5px;">App is already installed or feature is unsupported.</p>
+      </div>
     </div>
   </div>
 
@@ -160,5 +171,13 @@
     }
   </script>
   <script type="module" src="app.js"></script>
+  
+  <script>
+    // Just a tiny inline script to hide the hint if the install button shows up
+    window.addEventListener('beforeinstallprompt', () => {
+      const hint = document.getElementById('install-hint');
+      if(hint) hint.style.display = 'none';
+    });
+  </script>
 </body>
 </html>
