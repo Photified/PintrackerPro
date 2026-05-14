@@ -1,11 +1,11 @@
-const CACHE_NAME = 'pintracker-v3';
+const CACHE_NAME = 'pintracker-v4';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/app.js',
-  '/firebase-setup.js',
-  '/manifest.json'
+  './',
+  './index.html',
+  './style.css',
+  './app.js',
+  './firebase-setup.js',
+  './manifest.json'
 ];
 
 self.addEventListener('install', (e) => {

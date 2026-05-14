@@ -2,10 +2,10 @@
   "name": "PinTracker Pro",
   "short_name": "PinTracker",
   "description": "Track bowling scores, stats, and compete with friends.",
-  "start_url": "/index.html",
+  "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#121212",
-  "theme_color": "#ff5722",
+  "background_color": "#041a33",
+  "theme_color": "#ff6f00",
   "orientation": "portrait",
   "icons": [
     {
@@ -15,9 +15,9 @@
       "purpose": "any maskable"
     },
     {
-      "src": "icon-512.png",
+      "src": "icon-512.jpg",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     }
   ]
