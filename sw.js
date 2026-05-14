@@ -1,11 +1,13 @@
-const CACHE_NAME = 'pintracker-v5';
+const CACHE_NAME = 'pintracker-v6';
 const ASSETS = [
-  './',
-  './index.html',
-  './style.css',
-  './app.js',
-  './firebase-setup.js',
-  './manifest.json'
+  '/PintrackerPro/',
+  '/PintrackerPro/index.html',
+  '/PintrackerPro/style.css',
+  '/PintrackerPro/app.js',
+  '/PintrackerPro/firebase-setup.js',
+  '/PintrackerPro/manifest.json',
+  '/PintrackerPro/icon-192.png',
+  '/PintrackerPro/icon-512.jpg'
 ];
 
 self.addEventListener('install', (e) => {
