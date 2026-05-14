@@ -21,28 +21,64 @@
     </section>
 
     <section id="app-section" style="display: none;">
+      
       <div class="profile-card">
         <img id="user-photo" src="" alt="Profile Photo">
         <h2 id="user-name">Bowler</h2>
         <div class="stats-grid">
           <div class="stat-box">
-            <h3>Strike Rate</h3>
-            <p id="stat-strike">0%</p>
+            <h3>Average</h3>
+            <p id="stat-avg">0</p>
           </div>
           <div class="stat-box">
-            <h3>Spare Rate</h3>
-            <p id="stat-spare">0%</p>
+            <h3>High Game</h3>
+            <p id="stat-high">0</p>
+          </div>
+          <div class="stat-box">
+            <h3>1st Ball Avg</h3>
+            <p id="stat-first">0.0</p>
+          </div>
+          <div class="stat-box">
+            <h3>Open Frames</h3>
+            <p id="stat-open">0%</p>
           </div>
         </div>
-        <div id="achievements-container">
-          </div>
       </div>
 
       <div class="log-game-card">
-        <h3>Log a New Game</h3>
-        <p class="hint">Enter throws separated by commas (e.g., 10, 7, 3, 5, 4)</p>
-        <input type="text" id="game-throws" placeholder="10, 7, 3...">
-        <button id="submit-game-btn">Save Game</button>
+        <h3>Log Game</h3>
+        
+        <div id="game-status">
+          <span id="current-frame-display">Frame: 1</span> | 
+          <span id="current-throw-display">Throw: 1</span>
+        </div>
+
+        <div class="pin-deck">
+          <div class="pin-row">
+            <div class="pin" data-pin="7">7</div>
+            <div class="pin" data-pin="8">8</div>
+            <div class="pin" data-pin="9">9</div>
+            <div class="pin" data-pin="10">10</div>
+          </div>
+          <div class="pin-row">
+            <div class="pin" data-pin="4">4</div>
+            <div class="pin" data-pin="5">5</div>
+            <div class="pin" data-pin="6">6</div>
+          </div>
+          <div class="pin-row">
+            <div class="pin" data-pin="2">2</div>
+            <div class="pin" data-pin="3">3</div>
+          </div>
+          <div class="pin-row">
+            <div class="pin" data-pin="1">1</div>
+          </div>
+        </div>
+
+        <div class="throw-controls">
+          <button id="gutter-btn" class="secondary">Gutter (0)</button>
+          <button id="record-throw-btn">Record Throw</button>
+        </div>
+        
         <p id="game-feedback"></p>
       </div>
       

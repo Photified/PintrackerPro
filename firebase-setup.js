@@ -9,12 +9,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDNAvU5UmGJXr5xCjeMw8vct1Wmeef-GTY",
+  authDomain: "pintrackerpro.firebaseapp.com",
+  projectId: "pintrackerpro",
+  storageBucket: "pintrackerpro.firebasestorage.app",
+  messagingSenderId: "1026895971482",
+  appId: "1:1026895971482:web:44be7f67caba60f2434b23"
 };
 
 const app = initializeApp(firebaseConfig);
