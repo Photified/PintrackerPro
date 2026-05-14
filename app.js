@@ -246,9 +246,9 @@ function drawRadarChart(stats) {
       datasets: [{
         label: 'Bowler Profile',
         data: chartData,
-        backgroundColor: 'rgba(255, 87, 34, 0.2)',
-        borderColor: '#ff5722',
-        pointBackgroundColor: '#ff5722',
+        backgroundColor: 'rgba(255, 111, 0, 0.2)', // Updated to new orange
+        borderColor: '#ff6f00', // Updated to new orange
+        pointBackgroundColor: '#ff6f00', // Updated to new orange
         borderWidth: 2
       }]
     },
