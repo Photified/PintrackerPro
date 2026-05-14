@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PinTracker Pro</title>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#121212">
+  <meta name="theme-color" content="#041a33">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -150,7 +150,8 @@
 
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').catch(err => console.error(err));
+      navigator.serviceWorker.register('/Pintracker/sw.js', { scope: '/Pintracker/' })
+        .catch(err => console.error("Service Worker registration failed:", err));
     }
   </script>
   <script type="module" src="app.js"></script>
