@@ -64,6 +64,63 @@ img#user-photo { border-radius: 50%; width: 80px; height: 80px; border: 3px soli
 .strike-color { background-color: #e53935 !important; }
 .spare-color { background-color: #1e88e5 !important; }
 
+/* Photo Upload Styles */
+.photo-wrapper {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  margin: 0 auto;
+  cursor: pointer;
+}
+.photo-wrapper img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--primary);
+}
+.photo-overlay {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.6);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.5rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.photo-wrapper:hover .photo-overlay { opacity: 1; }
+
+/* Chart Container */
+.chart-card {
+  background-color: var(--surface);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+.chart-card h3 { margin-top: 0; color: var(--primary); border-bottom: 1px solid #333; padding-bottom: 10px; text-align: left;}
+.chart-container { position: relative; width: 100%; max-width: 400px; margin: 0 auto; aspect-ratio: 1; }
+
+/* Ghosted Achievements */
+.achievement-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.badge.ghosted {
+  background: #333;
+  color: #777;
+  box-shadow: none;
+  filter: grayscale(100%);
+  opacity: 0.5;
+}
+.ach-count { font-size: 0.8rem; font-weight: bold; color: var(--text-muted); }
+.ach-count.active-count { color: var(--primary); }
+
 /* Achievements */
 .achievements-card { background-color: var(--surface); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3); text-align: left; }
 .achievements-card h3 { margin-top: 0; color: var(--primary); border-bottom: 1px solid #333; padding-bottom: 10px; }
