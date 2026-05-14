@@ -134,6 +134,23 @@ img#user-photo { border-radius: 50%; width: 80px; height: 80px; border: 3px soli
 .ach-count { font-size: 0.8rem; font-weight: bold; color: var(--text-muted); }
 .ach-count.active-count { color: var(--primary); }
 
+/* Friends UI */
+.friend-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #2a2a2a;
+  padding: 10px 15px;
+  border-radius: 8px;
+  margin-bottom: 5px;
+}
+.friend-info { display: flex; align-items: center; gap: 15px; }
+.friend-info img { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--primary); object-fit: cover;}
+.friend-details h4 { margin: 0; font-size: 1rem; color: white; }
+.friend-details p { margin: 0; font-size: 0.8rem; color: var(--text-muted); }
+.add-friend-btn { padding: 6px 12px; font-size: 0.8rem; width: auto; margin: 0; }
+.remove-friend-btn { background: transparent; border: 1px solid #e53935; color: #e53935; padding: 6px 12px; font-size: 0.8rem; width: auto; margin: 0; }
+
 /* Achievements */
 .achievements-card { background-color: var(--surface); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3); text-align: left; }
 .achievements-card h3 { margin-top: 0; color: var(--primary); border-bottom: 1px solid #333; padding-bottom: 10px; }
