@@ -146,18 +146,17 @@ img#user-photo {
 /* Scorecard */
 .scorecard-container { 
   width: 100%; 
-  overflow-x: auto; 
   margin-bottom: 1.5rem; 
   background: var(--surface); 
   border-radius: 8px; 
-  padding: 10px; 
+  padding: 6px; 
   box-sizing: border-box; 
   box-shadow: 0 4px 8px rgba(0,0,0,0.3); 
 }
 
 .scorecard { 
   display: flex; 
-  min-width: 500px; 
+  width: 100%; 
   border: 2px solid #1a4a85; 
   background: #020e1c; 
   border-radius: 4px; 
@@ -178,7 +177,7 @@ img#user-photo {
 
 .frame-num { 
   background: #082850; 
-  font-size: 0.7rem; 
+  font-size: clamp(0.5rem, 2vw, 0.7rem); 
   font-weight: bold; 
   border-bottom: 1px solid #1a4a85; 
   padding: 3px 0; 
@@ -197,7 +196,7 @@ img#user-photo {
   justify-content: center; 
   align-items: center; 
   font-weight: bold; 
-  font-size: 0.9rem; 
+  font-size: clamp(0.6rem, 2.5vw, 0.9rem); 
   border-left: 1px solid #1a4a85; 
   color: white;
 }
@@ -212,7 +211,7 @@ img#user-photo {
   justify-content: center; 
   align-items: center; 
   font-weight: bold; 
-  font-size: 1.1rem; 
+  font-size: clamp(0.7rem, 3vw, 1.1rem); 
   color: var(--primary); 
 }
 
@@ -414,13 +413,14 @@ img#user-photo {
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  width: 22px;
-  height: 22px;
+  width: clamp(14px, 3vw, 22px);
+  height: clamp(14px, 3vw, 22px);
   border: 1px solid var(--primary);
   border-radius: 50%;
   color: var(--primary);
   line-height: 1;
   background: rgba(255, 111, 0, 0.1);
+  font-size: clamp(0.5rem, 2vw, 0.9rem);
 }
 
 /* Ghosted Achievements */
