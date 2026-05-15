@@ -22,11 +22,11 @@ header {
 }
 
 h1 { margin-top: 0; font-size: 1.5rem; }
-main { padding: 1rem; max-width: 600px; margin: 0 auto; }
+main { padding: 0.75rem; max-width: 600px; margin: 0 auto; }
 
 /* Navigation */
 #main-nav { display: flex; justify-content: space-around; margin-top: 10px; }
-.nav-btn { background: none; border: none; color: var(--text-muted); padding: 10px; font-weight: bold; font-size: 1rem; margin: 0; border-radius: 0; border-bottom: 3px solid transparent; width: auto; flex: 1; cursor: pointer; }
+.nav-btn { background: none; border: none; color: var(--text-muted); padding: 8px; font-weight: bold; font-size: 0.9rem; margin: 0; border-radius: 0; border-bottom: 3px solid transparent; width: auto; flex: 1; cursor: pointer; }
 .nav-btn.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
 .tab-content { display: none; }
 .tab-content.active { display: block; animation: fadeIn 0.3s; }
@@ -36,88 +36,120 @@ main { padding: 1rem; max-width: 600px; margin: 0 auto; }
 button { background-color: var(--primary); color: white; border: none; padding: 12px 24px; font-size: 1rem; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 1rem; }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 button.secondary { background-color: transparent; border: 1px solid var(--text-muted); color: var(--text); }
-.log-game-card, .profile-card { background-color: var(--surface); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 4px 8px rgba(0,0,0,0.4); }
+.log-game-card, .profile-card { background-color: var(--surface); border-radius: 12px; padding: 1.2rem; margin-bottom: 1rem; box-shadow: 0 4px 8px rgba(0,0,0,0.4); }
 
-/* ---- NEW PROFILE LAYOUT ---- */
+/* ---- COMPACT PROFILE LAYOUT ---- */
 
-/* Container 1: Header & Achievements */
+/* Container 1: Header & 3x3 Achievements */
 .profile-header-card {
   background-color: var(--surface);
   border-radius: 12px;
-  padding: 15px;
-  margin-bottom: 1rem;
+  padding: 12px;
+  margin-bottom: 8px;
   box-shadow: 0 4px 8px rgba(0,0,0,0.4);
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 12px;
 }
 
 .profile-identity {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 80px;
+  min-width: 75px;
 }
 
-.profile-identity h2 { margin: 5px 0 0 0; font-size: 1.1rem; text-align: center; }
-.photo-wrapper { position: relative; width: 65px; height: 65px; cursor: pointer; }
+.profile-identity h2 { margin: 5px 0 0 0; font-size: 1rem; text-align: center; }
+.photo-wrapper { position: relative; width: 60px; height: 60px; cursor: pointer; }
 .photo-wrapper img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); background: white;}
-.photo-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(4, 26, 51, 0.7); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 1.2rem; opacity: 0; transition: opacity 0.2s; }
+.photo-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(4, 26, 51, 0.7); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 1rem; opacity: 0; transition: opacity 0.2s; }
 .photo-wrapper:hover .photo-overlay { opacity: 1; }
 
 .profile-achievements {
   flex: 1;
   text-align: left;
   border-left: 1px solid rgba(255,255,255,0.1);
-  padding-left: 15px;
+  padding-left: 12px;
 }
 
-.profile-achievements h3 { margin-top: 0; font-size: 0.85rem; color: var(--primary); margin-bottom: 8px; text-transform: uppercase;}
-.achievements-grid { display: flex; flex-wrap: wrap; gap: 5px; }
-.achievement-wrapper { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.badge { background: linear-gradient(135deg, #ffd700, #ff8c00); color: #000; padding: 4px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.4); white-space: nowrap;}
-.badge.ghosted { background: rgba(255,255,255,0.05); color: var(--text-muted); box-shadow: none; filter: grayscale(100%); opacity: 0.5; border: 1px solid rgba(255,255,255,0.1); }
-.ach-count { font-size: 0.65rem; font-weight: bold; color: var(--text-muted); }
-.ach-count.active-count { color: var(--primary); }
+.profile-achievements h3 { margin-top: 0; font-size: 0.75rem; color: var(--primary); margin-bottom: 6px; text-transform: uppercase;}
+.achievements-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 
-/* Container 2: Compact Stats */
+/* Achievement Rectangles */
+.achievement-wrapper {
+  background: rgba(255, 111, 0, 0.1);
+  border: 1px solid rgba(255, 111, 0, 0.3);
+  border-radius: 6px;
+  padding: 6px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.achievement-wrapper.ghosted {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  filter: grayscale(100%);
+  opacity: 0.4;
+}
+
+.badge {
+  background: none;
+  box-shadow: none;
+  color: var(--text);
+  padding: 0;
+  font-size: 0.55rem;
+  font-weight: bold;
+  white-space: normal;
+  line-height: 1.1;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+}
+
+.achievement-wrapper:not(.ghosted) .badge { color: var(--primary); }
+.ach-count { font-size: 0.6rem; font-weight: bold; color: var(--text-muted); }
+.ach-count.active-count { color: var(--text); }
+
+/* Container 2: 1x4 Compact Stats */
 .profile-stats-card {
   background-color: var(--surface);
   border-radius: 12px;
-  padding: 12px;
-  margin-bottom: 1rem;
+  padding: 10px;
+  margin-bottom: 8px;
   box-shadow: 0 4px 8px rgba(0,0,0,0.4);
 }
 
 .stats-grid.compact-stats {
   display: grid; 
-  grid-template-columns: 1fr 1fr; 
-  gap: 8px; 
+  grid-template-columns: repeat(4, 1fr); /* 4 columns! */
+  gap: 6px; 
   margin-top: 0;
 }
-.stat-box { background: rgba(255, 255, 255, 0.08); padding: 8px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); }
-.stat-box h3 { font-size: 0.7rem; color: var(--text-muted); margin: 0; text-transform: uppercase; }
-.stat-box p { font-size: 1.2rem; font-weight: bold; margin: 2px 0 0 0; color: var(--primary); }
+.stat-box { background: rgba(255, 255, 255, 0.08); padding: 6px 2px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05); }
+.stat-box h3 { font-size: 0.55rem; color: var(--text-muted); margin: 0; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+.stat-box p { font-size: 1.1rem; font-weight: bold; margin: 2px 0 0 0; color: var(--primary); }
 
 /* Container 3: Stacked Charts */
 .profile-charts-card {
   background-color: var(--surface);
   border-radius: 12px;
-  padding: 15px;
-  margin-bottom: 1rem;
+  padding: 12px;
+  margin-bottom: 8px;
   box-shadow: 0 4px 8px rgba(0,0,0,0.4);
 }
 
-.chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.chart-header h3, .web-header { margin: 0; color: var(--primary); font-size: 0.9rem; text-transform: uppercase; text-align: left; }
-.web-header { margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; margin-bottom: 10px;}
+.chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.chart-header h3, .web-header { margin: 0; color: var(--primary); font-size: 0.8rem; text-transform: uppercase; text-align: left; }
+.web-header { margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px; margin-bottom: 4px;}
 
 .chart-toggles { display: flex; gap: 4px; }
 .toggle-btn { background: rgba(255,255,255,0.1); color: var(--text-muted); border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; width: auto; margin: 0; font-weight: normal; }
 .toggle-btn.active { background: var(--primary); color: white; font-weight: bold; }
 
-.line-chart-container { width: 100%; height: 130px; position: relative; }
-.chart-container.radar-compact { width: 100%; max-width: 250px; margin: 0 auto; height: 180px; position: relative; }
+.line-chart-container { width: 100%; height: 110px; position: relative; } /* Shrunk! */
+.chart-container.radar-compact { width: 100%; max-width: 250px; margin: 0 auto; height: 140px; position: relative; } /* Shrunk! */
 
 
 /* Scorecard */

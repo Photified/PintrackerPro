@@ -32,7 +32,7 @@ function switchTab(tabName) {
 
 tabs.profile.btn.addEventListener('click', () => {
   if (currentUser) {
-    loadProfile(currentUser.uid); // Always load YOUR profile when clicking the tab
+    loadProfile(currentUser.uid);
   }
   switchTab('profile');
 });
@@ -61,7 +61,6 @@ document.getElementById('limit-50-btn').addEventListener('click', (e) => {
 });
 
 function updateHistoryChartLimit(e, newLimit) {
-  // Update button active state
   document.querySelectorAll('#history-toggles .toggle-btn').forEach(b => b.classList.remove('active'));
   e.target.classList.add('active');
   
@@ -156,7 +155,6 @@ onAuthStateChanged(auth, async (user) => {
     appWrapper.style.display = 'block';
     mainNav.style.display = 'flex';
     
-    // Save email so we can search by it!
     await setDoc(doc(db, "users", user.uid), { 
       name: user.displayName, 
       email: user.email.toLowerCase(), 
@@ -164,7 +162,7 @@ onAuthStateChanged(auth, async (user) => {
       lastLogin: Timestamp.now()
     }, { merge: true });
     
-    loadProfile(currentUser.uid); // Load self initially
+    loadProfile(currentUser.uid); 
     flatThrowsArray = [];
     splitIndices = [];
     renderScorecard(); 
@@ -177,12 +175,17 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // --- PROFILE LOADER (Self or Friend) ---
+// Exact 9 items for the perfect 3x3 Grid
 const MASTER_ACHIEVEMENTS = [
   { id: '200 Club 🎯', desc: 'Score 200+' },
   { id: 'Clean Game 🧼', desc: 'No open frames' },
+  { id: 'Perfect Game 👑', desc: 'Score 300' },
+  { id: 'Double 🎳', desc: '2 strikes in a row' },
   { id: 'Turkey 🦃', desc: '3 strikes in a row' },
+  { id: 'Hambone 🍖', desc: '4 strikes in a row' },
   { id: 'Clutch Finisher 🧊', desc: '3 strikes in 10th' },
-  { id: 'Split Converter 🎳', desc: 'Convert a split into a spare' }
+  { id: 'Split Converter 🎳', desc: 'Convert a split' },
+  { id: 'Gutter-Free 🛡️', desc: 'No gutters' }
 ];
 
 document.getElementById('back-to-me-btn').addEventListener('click', () => {
@@ -197,7 +200,6 @@ window.viewFriendProfile = (friendUid) => {
 async function loadProfile(targetUid) {
   const isMe = (targetUid === currentUser.uid);
   
-  // Update UI Modes
   document.getElementById('back-to-me-btn').style.display = isMe ? 'none' : 'inline-block';
   document.getElementById('logout-btn').style.display = isMe ? 'block' : 'none';
   document.getElementById('photo-overlay').style.display = isMe ? '' : 'none';
@@ -234,54 +236,49 @@ async function loadProfile(targetUid) {
       const count = achData[ach.id] || 0;
       const isUnlocked = count > 0;
       return `
-        <div class="achievement-wrapper">
-          <div class="badge ${isUnlocked ? '' : 'ghosted'}">${ach.id}</div>
+        <div class="achievement-wrapper ${isUnlocked ? '' : 'ghosted'}">
+          <div class="badge">${ach.id}</div>
           <div class="ach-count ${isUnlocked ? 'active-count' : ''}">${isUnlocked ? `x${count}` : '0'}</div>
         </div>
       `;
     }).join('');
 
-    // --- Load History Line Chart with initial limit based on active button ---
     const activeBtn = document.querySelector('#history-toggles .toggle-btn.active');
     const limit = activeBtn ? parseInt(activeBtn.innerText) : 10;
     drawHistoryChart(targetUid, limit);
   }
 }
 
-// Direct query approach for History Chart, respecting the limit
+// Bypassing Firebase Index limitation by pulling ALL games for a user and sorting locally in JS
 async function drawHistoryChart(uid, gameLimit) {
   const ctx = document.getElementById('historyChart').getContext('2d');
   const gamesRef = collection(db, "games");
   
-  const recentGamesQuery = query(
-    gamesRef,
-    where("userId", "==", uid),
-    orderBy("date", "desc"),
-    firestoreLimit(gameLimit)
-  );
+  // Notice orderBy is removed to fix the missing composite index error
+  const userGamesQuery = query(gamesRef, where("userId", "==", uid));
   
   try {
-    const gSnap = await getDocs(recentGamesQuery);
+    const gSnap = await getDocs(userGamesQuery);
     let displayGames = [];
     gSnap.forEach(doc => displayGames.push(doc.data()));
     
-    // Sort chronologically ascending (oldest to newest)
+    // Sort ascending locally
     displayGames.sort((a, b) => (a.date?.seconds || 0) - (b.date?.seconds || 0));
+
+    // Slice to the requested limit
+    displayGames = displayGames.slice(-gameLimit);
 
     const labels = displayGames.map((g, i) => {
       if(g.date instanceof Timestamp) {
         return g.date.toDate().toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
       }
-      return `G${i+1}`; // Fallback if no date or wrong format
+      return `G${i+1}`; 
     });
     const data = displayGames.map(g => g.score);
 
-    if (historyChart) {
-      historyChart.destroy();
-    }
+    if (historyChart) historyChart.destroy();
 
     if (displayGames.length === 0) {
-      // Render an empty chart if no games
       historyChart = new Chart(ctx, {
         type: 'line',
         data: { labels: ['No Data'], datasets: [{ data: [] }] },
@@ -319,17 +316,14 @@ async function drawHistoryChart(uid, gameLimit) {
           },
           x: { 
             grid: { display: false }, 
-            ticks: { color: '#95b8df', maxTicksLimit: gameLimit > 10 ? 10 : gameLimit } // help readability on mobile
+            ticks: { color: '#95b8df', maxTicksLimit: gameLimit > 10 ? 10 : gameLimit }
           }
         },
-        plugins: { 
-          legend: { display: false } 
-        }
+        plugins: { legend: { display: false } }
       }
     });
   } catch (err) {
     console.error("Error loading games for history chart:", err);
-    // Render error state on chart
     if (historyChart) historyChart.destroy();
     historyChart = new Chart(ctx, {
       type: 'line',
@@ -357,9 +351,7 @@ function drawRadarChart(stats) {
 
   const chartData = [avgWeb, highWeb, strikePct, sparePct, fillRateWeb, firstBallWeb];
 
-  if (radarChart) {
-    radarChart.destroy(); 
-  }
+  if (radarChart) radarChart.destroy(); 
 
   radarChart = new Chart(ctx, {
     type: 'radar',
@@ -368,9 +360,9 @@ function drawRadarChart(stats) {
       datasets: [{
         label: 'Bowler Profile',
         data: chartData,
-        backgroundColor: 'rgba(255, 111, 0, 0.2)', // Updated to new orange
-        borderColor: '#ff6f00', // Updated to new orange
-        pointBackgroundColor: '#ff6f00', // Updated to new orange
+        backgroundColor: 'rgba(255, 111, 0, 0.2)',
+        borderColor: '#ff6f00',
+        pointBackgroundColor: '#ff6f00',
         borderWidth: 2
       }]
     },
@@ -404,7 +396,6 @@ searchBtn.addEventListener('click', async () => {
 
   try {
     const usersRef = collection(db, "users");
-    // Search by exact email
     const q = query(usersRef, where("email", "==", searchTerm));
     const querySnapshot = await getDocs(q);
     
@@ -427,7 +418,6 @@ searchBtn.addEventListener('click', async () => {
       const isAlreadyFriend = currentUserFriends.includes(uid);
       const photoSrc = data.customPhoto || data.defaultPhoto || '';
 
-      // Stop propagation on the add button so it doesn't trigger the card click
       searchResults.innerHTML += `
         <div class="friend-card" onclick="viewFriendProfile('${uid}')">
           <div class="friend-info">
@@ -455,18 +445,14 @@ window.addFriend = async (friendUid) => {
     const userRef = doc(db, "users", currentUser.uid);
     await setDoc(userRef, { friends: arrayUnion(friendUid) }, { merge: true });
     
-    if (!currentUserFriends.includes(friendUid)) {
-      currentUserFriends.push(friendUid);
-    }
+    if (!currentUserFriends.includes(friendUid)) currentUserFriends.push(friendUid);
     
     searchInput.value = '';
     searchResults.innerHTML = '<p style="color: #4caf50;">Friend added successfully!</p>';
     setTimeout(() => { searchResults.innerHTML = ''; }, 2000);
     
     loadFriendsList();
-  } catch (error) { 
-    console.error("Error adding friend:", error); 
-  }
+  } catch (error) { console.error("Error adding friend:", error); }
 };
 
 window.removeFriend = async (friendUid) => {
@@ -477,17 +463,12 @@ window.removeFriend = async (friendUid) => {
     
     currentUserFriends = currentUserFriends.filter(id => id !== friendUid);
     loadFriendsList();
-  } catch (error) { 
-    console.error("Error removing friend:", error); 
-  }
+  } catch (error) { console.error("Error removing friend:", error); }
 };
 
 async function loadFriendsList() {
-  // Always make sure we have latest friends list from our DB
   const myDoc = await getDoc(doc(db, "users", currentUser.uid));
-  if (myDoc.exists()) {
-    currentUserFriends = myDoc.data().friends || [];
-  }
+  if (myDoc.exists()) currentUserFriends = myDoc.data().friends || [];
 
   if (currentUserFriends.length === 0) {
     friendsListContainer.innerHTML = '<p style="color: var(--text-muted);">You haven\'t added any friends yet.</p>';
@@ -500,9 +481,7 @@ async function loadFriendsList() {
   try {
     for (const uid of currentUserFriends) {
       const friendDoc = await getDoc(doc(db, "users", uid));
-      if (friendDoc.exists()) {
-        friendsData.push({ uid: uid, ...friendDoc.data() });
-      }
+      if (friendDoc.exists()) friendsData.push({ uid: uid, ...friendDoc.data() });
     }
 
     friendsData.sort((a, b) => (b.stats?.average || 0) - (a.stats?.average || 0));
@@ -562,9 +541,7 @@ function groupThrowsIntoFrames(throws) {
       } 
     }
   }
-  if (currentFrame.length > 0) {
-    frames.push(currentFrame);
-  }
+  if (currentFrame.length > 0) frames.push(currentFrame);
   return frames;
 }
 
@@ -595,7 +572,6 @@ function calculateNewStats(frames, currentStats, gameScore) {
   const totalFirstThrows = (currentStats.totalFirstThrows || 0) + sessionFirstThrows;
   const totalFirstBallPins = (currentStats.totalFirstBallPins || 0) + sessionFirstBallPins;
   const totalOpenFrames = (currentStats.totalOpenFrames || 0) + sessionOpenFrames;
-  
   const totalStrikes = (currentStats.totalStrikes || 0) + sessionStrikes;
   const totalSpares = (currentStats.totalSpares || 0) + sessionSpares;
   const totalSpareOpps = (currentStats.totalSpareOpps || 0) + sessionSpareOpps;
@@ -609,7 +585,6 @@ function calculateNewStats(frames, currentStats, gameScore) {
   };
 }
 
-// USBC Rules Graph Algorithm to detect if standing pins form a split
 function checkIfSplit(standingPins) {
   if (standingPins.includes(1) || standingPins.length < 2) return false;
   
@@ -641,36 +616,37 @@ function checkAchievements(flatThrows, frames, score, splitIdxArray, currentAchi
   const addAch = (id) => { newAch[id] = (newAch[id] || 0) + 1; };
 
   if (score >= 200) addAch('200 Club 🎯');
+  if (score === 300) addAch('Perfect Game 👑');
 
   let isClean = true;
+  let hasGutter = false;
+  
   for (let i = 0; i < 10; i++) {
     const f = frames[i];
-    if (!f || (f[0] !== 10 && (f.length < 2 || f[0] + f[1] !== 10))) { 
-      isClean = false; 
-      break; 
-    }
+    if (!f || (f[0] !== 10 && (f.length < 2 || f[0] + f[1] !== 10))) isClean = false; 
   }
   if (isClean && frames.length === 10) addAch('Clean Game 🧼');
+
+  flatThrows.forEach(t => { if (t === 0) hasGutter = true; });
+  if (!hasGutter && flatThrows.length > 0) addAch('Gutter-Free 🛡️');
 
   let strikeStreak = 0;
   for (let t of flatThrows) {
     if (t === 10) { 
       strikeStreak++; 
+      if (strikeStreak === 2) addAch('Double 🎳');
       if (strikeStreak === 3) addAch('Turkey 🦃'); 
+      if (strikeStreak === 4) addAch('Hambone 🍖'); 
     } else { 
       strikeStreak = 0; 
     }
   }
 
   const tenth = frames[9];
-  if (tenth && tenth[0] === 10 && tenth[1] === 10 && tenth[2] === 10) {
-    addAch('Clutch Finisher 🧊');
-  }
+  if (tenth && tenth[0] === 10 && tenth[1] === 10 && tenth[2] === 10) addAch('Clutch Finisher 🧊');
 
   splitIdxArray.forEach(idx => {
-    if (flatThrows[idx + 1] === 10 - flatThrows[idx]) {
-      addAch('Split Converter 🎳');
-    }
+    if (flatThrows[idx + 1] === 10 - flatThrows[idx]) addAch('Split Converter 🎳');
   });
 
   return newAch;
@@ -699,33 +675,24 @@ function renderScorecard() {
           throwIdx += 1; 
         } else { 
           t1 = t1val === 0 ? '-' : t1val; 
-          if (splitIndices.includes(throwIdx)) {
-            t1 = `<span class="split-circle">${t1}</span>`;
-          }
-          if (frameData.length > 1) { 
-            t2 = (t1val + t2val === 10) ? '/' : (t2val === 0 ? '-' : t2val); 
-          } 
+          if (splitIndices.includes(throwIdx)) t1 = `<span class="split-circle">${t1}</span>`;
+          if (frameData.length > 1) t2 = (t1val + t2val === 10) ? '/' : (t2val === 0 ? '-' : t2val); 
           throwIdx += 2; 
         }
         
-        // Calculate running score if frame is resolved
         if ((t2 === 'X' && flatThrowsArray[throwIdx] !== undefined && flatThrowsArray[throwIdx+1] !== undefined) || 
             (t2 === '/' && flatThrowsArray[throwIdx] !== undefined) || 
             (t2 !== 'X' && t2 !== '/' && frameData.length === 2)) {
             
             let fScore = 0;
-            if (t2 === 'X') {
-              fScore = 10 + flatThrowsArray[throwIdx] + flatThrowsArray[throwIdx+1];
-            } else if (t2 === '/') {
-              fScore = 10 + flatThrowsArray[throwIdx];
-            } else {
-              fScore = t1val + t2val;
-            }
+            if (t2 === 'X') fScore = 10 + flatThrowsArray[throwIdx] + flatThrowsArray[throwIdx+1];
+            else if (t2 === '/') fScore = 10 + flatThrowsArray[throwIdx];
+            else fScore = t1val + t2val;
+            
             runningScore += fScore; 
             frameScoreDisplay = runningScore;
         }
       } else {
-        // 10th Frame Logic
         let t1val = flatThrowsArray[throwIdx]; 
         let t2val = flatThrowsArray[throwIdx + 1]; 
         let t3val = flatThrowsArray[throwIdx + 2];
@@ -780,19 +747,14 @@ const spareBtn = document.getElementById('spare-btn');
 
 pins.forEach(pin => { 
   pin.addEventListener('click', () => { 
-    if (!pin.classList.contains('locked-down')) {
-      pin.classList.toggle('down'); 
-    }
+    if (!pin.classList.contains('locked-down')) pin.classList.toggle('down'); 
   }); 
 });
 
 function resetPins(fullReset = false) { 
   pins.forEach(pin => { 
-    if (fullReset) {
-      pin.classList.remove('down', 'locked-down'); 
-    } else if (pin.classList.contains('down')) {
-      pin.classList.add('locked-down'); 
-    }
+    if (fullReset) pin.classList.remove('down', 'locked-down'); 
+    else if (pin.classList.contains('down')) pin.classList.add('locked-down'); 
   }); 
 }
 
@@ -804,46 +766,27 @@ function processThrow(pinsFallen) {
   if (isFirstThrowOfRack && pinsFallen > 0 && pinsFallen < 10) {
     let standing = []; 
     document.querySelectorAll('.pin:not(.down)').forEach(p => standing.push(parseInt(p.dataset.pin)));
-    
-    if (checkIfSplit(standing)) {
-      splitIndices.push(flatThrowsArray.length - 1);
-    }
+    if (checkIfSplit(standing)) splitIndices.push(flatThrowsArray.length - 1);
   }
 
   renderScorecard(); 
 
   if (currentFrame < 10) {
-    if (pinsStandingThisFrame === 0 || currentThrow === 2) {
-      advanceFrame();
-    } else { 
-      currentThrow = 2; 
-      resetPins(false); 
-      updateUI(); 
-    }
+    if (pinsStandingThisFrame === 0 || currentThrow === 2) advanceFrame();
+    else { currentThrow = 2; resetPins(false); updateUI(); }
   } else {
-    // 10th Frame
     if (currentThrow === 1) { 
       currentThrow = 2; 
-      if (pinsStandingThisFrame === 0) { 
-        pinsStandingThisFrame = 10; 
-        resetPins(true); 
-      } else {
-        resetPins(false); 
-      }
+      if (pinsStandingThisFrame === 0) { pinsStandingThisFrame = 10; resetPins(true); } 
+      else resetPins(false); 
       updateUI(); 
     } else if (currentThrow === 2) {
       if (flatThrowsArray[flatThrowsArray.length - 2] === 10 || pinsStandingThisFrame === 0) { 
         currentThrow = 3; 
-        if (pinsStandingThisFrame === 0) { 
-          pinsStandingThisFrame = 10; 
-          resetPins(true); 
-        } else {
-          resetPins(false); 
-        }
+        if (pinsStandingThisFrame === 0) { pinsStandingThisFrame = 10; resetPins(true); } 
+        else resetPins(false); 
         updateUI(); 
-      } else {
-        finishGame();
-      }
+      } else finishGame();
     } else {
       finishGame();
     }
@@ -872,20 +815,9 @@ function updateUI() {
 }
 
 document.getElementById('gutter-btn').addEventListener('click', () => processThrow(0));
-
-document.getElementById('record-throw-btn').addEventListener('click', () => {
-  processThrow(document.querySelectorAll('.pin.down:not(.locked-down)').length);
-});
-
-strikeBtn.addEventListener('click', () => { 
-  document.querySelectorAll('.pin:not(.down)').forEach(p => p.classList.add('down')); 
-  processThrow(pinsStandingThisFrame); 
-});
-
-spareBtn.addEventListener('click', () => { 
-  document.querySelectorAll('.pin:not(.down)').forEach(p => p.classList.add('down')); 
-  processThrow(pinsStandingThisFrame); 
-});
+document.getElementById('record-throw-btn').addEventListener('click', () => { processThrow(document.querySelectorAll('.pin.down:not(.locked-down)').length); });
+strikeBtn.addEventListener('click', () => { document.querySelectorAll('.pin:not(.down)').forEach(p => p.classList.add('down')); processThrow(pinsStandingThisFrame); });
+spareBtn.addEventListener('click', () => { document.querySelectorAll('.pin:not(.down)').forEach(p => p.classList.add('down')); processThrow(pinsStandingThisFrame); });
 
 async function finishGame() {
   document.getElementById('record-throw-btn').disabled = true; 
@@ -910,7 +842,6 @@ async function finishGame() {
     const userSnap = await getDoc(userRef);
     let userData = userSnap.exists() ? userSnap.data() : {};
     
-    // Safety check for old string arrays
     if (Array.isArray(userData.achievements)) { 
       const migrated = {}; 
       userData.achievements.forEach(ach => migrated[ach] = 1); 
