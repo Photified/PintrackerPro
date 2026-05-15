@@ -7,9 +7,10 @@ import {
   persistentMultipleTabManager,
   doc, setDoc, getDoc, collection, addDoc,
   query, where, getDocs, arrayUnion, arrayRemove,
-  Timestamp, orderBy, limit // <-- Added these!
+  Timestamp, orderBy, limit 
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+// REPLACE THESE WITH YOUR ACTUAL FIREBASE PROJECT KEYS
 const firebaseConfig = {
   apiKey: "AIzaSyDNAvU5UmGJXr5xCjeMw8vct1Wmeef-GTY",
   authDomain: "pintrackerpro.firebaseapp.com",
@@ -19,9 +20,11 @@ const firebaseConfig = {
   appId: "1:1026895971482:web:44be7f67caba60f2434b23"
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
+// Enable offline persistence for the PWA
 const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
 });
@@ -32,5 +35,5 @@ export {
   auth, db, provider, signInWithPopup, onAuthStateChanged, signOut, 
   doc, setDoc, getDoc, collection, addDoc,
   query, where, getDocs, arrayUnion, arrayRemove,
-  Timestamp, orderBy, limit as firestoreLimit // <-- Exported them!
+  Timestamp, orderBy, limit 
 };

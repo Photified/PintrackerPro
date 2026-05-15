@@ -47,23 +47,6 @@ tabs.friends.btn.addEventListener('click', () => {
 });
 
 // --- CHART TOGGLES ---
-// These are not needed with the direct `query` approach, 
-// but added for completeness of original app logic.
-// The data-limit logic is handled in `loadProfile`.
-
-// document.querySelectorAll('.toggle-btn').forEach(btn => {
-//   btn.addEventListener('click', (e) => {
-//     document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
-//     e.target.classList.add('active');
-//     const limit = parseInt(e.target.dataset.limit);
-//     if (currentUser) {
-//       // Refetch or redraw based on the limit
-//       loadProfile(currentUser.uid); // This will handle the limit update
-//     }
-//   });
-// });
-
-// --- direct event listener for direct limit buttons ---
 document.getElementById('limit-5-btn').addEventListener('click', (e) => {
   updateHistoryChartLimit(e, 5);
 });
@@ -258,8 +241,10 @@ async function loadProfile(targetUid) {
       `;
     }).join('');
 
-    // --- Load History Line Chart with initial limit (e.g., 10) ---
-    drawHistoryChart(targetUid, 10);
+    // --- Load History Line Chart with initial limit based on active button ---
+    const activeBtn = document.querySelector('#history-toggles .toggle-btn.active');
+    const limit = activeBtn ? parseInt(activeBtn.innerText) : 10;
+    drawHistoryChart(targetUid, limit);
   }
 }
 
@@ -267,16 +252,7 @@ async function loadProfile(targetUid) {
 async function drawHistoryChart(uid, gameLimit) {
   const ctx = document.getElementById('historyChart').getContext('2d');
   const gamesRef = collection(db, "games");
-  const gQuery = query(
-    gamesRef, 
-    where("userId", "==", uid),
-    orderBy("date", "asc"), // We need ascending for Chart.js date axis, but limit queries can only sort desc if limiting
-    firestoreLimit(gameLimit) // This gives us up to 50 chronologically ascending games, which might not be the most *recent*
-  );
-
-  // A different way for 'most recent ASC':
-  // Query 1: most recent games (desc)
-  // Query 2: re-sort that result locally ascending.
+  
   const recentGamesQuery = query(
     gamesRef,
     where("userId", "==", uid),
