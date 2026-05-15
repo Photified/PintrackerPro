@@ -393,14 +393,14 @@ function drawHistoryChart(displayGames, requestedLimit) {
         legend: { display: false },
         tooltip: {
           position: 'nearest', 
-          yAlign: 'center', // THIS IS THE FIX: Forces the tooltip to pop out to the side instead of above!
+          yAlign: 'center',
           backgroundColor: 'rgba(4, 26, 51, 0.9)',
           titleColor: '#ff6f00',
           bodyFont: { size: 13 },
           padding: 10,
           displayColors: false,
           callbacks: {
-            title: function(context) { return context[0].label; },
+            title: function() { return null; }, // HIDDEN: Removes the date entirely from the popup!
             label: function(context) {
               const details = context.dataset.gameDetails[context.dataIndex];
               return [
