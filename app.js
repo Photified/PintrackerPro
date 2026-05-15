@@ -381,7 +381,6 @@ function drawHistoryChart(displayGames, requestedLimit) {
       responsive: true,
       maintainAspectRatio: false,
       interaction: {
-        // Changed to nearest and axis 'x' to snap perfectly to the exact point's location
         mode: 'nearest',
         axis: 'x',
         intersect: false,
@@ -393,7 +392,8 @@ function drawHistoryChart(displayGames, requestedLimit) {
       plugins: { 
         legend: { display: false },
         tooltip: {
-          position: 'nearest', // Forces tooltip arrow directly onto the tapped dot
+          position: 'nearest', 
+          yAlign: 'center', // THIS IS THE FIX: Forces the tooltip to pop out to the side instead of above!
           backgroundColor: 'rgba(4, 26, 51, 0.9)',
           titleColor: '#ff6f00',
           bodyFont: { size: 13 },
@@ -426,12 +426,12 @@ function drawRadarChart(avg, high, firstBall, strikePct, sparePct, fillPct) {
   const nSparePct = Number(sparePct) || 0;
   const nFillPct = Number(fillPct) || 0;
 
-  const visAvg = Math.min(100, (nAvg / 200) * 100); 
-  const visHigh = Math.min(100, (nHigh / 250) * 100); 
-  const vis1st = Math.min(100, (nFirstBall / 9.0) * 100); 
-  const visStrike = Math.min(100, (nStrikePct / 45) * 100); 
-  const visSpare = Math.min(100, (nSparePct / 65) * 100); 
-  const visFill = Math.min(100, (nFillPct / 85) * 100); 
+  const visAvg = Math.min(100, Math.sqrt(nAvg / 230) * 100); 
+  const visHigh = Math.min(100, Math.sqrt(nHigh / 300) * 100); 
+  const vis1st = Math.min(100, Math.sqrt(nFirstBall / 9.5) * 100); 
+  const visStrike = Math.min(100, Math.sqrt(nStrikePct / 60) * 100); 
+  const visSpare = Math.min(100, Math.sqrt(nSparePct / 85) * 100); 
+  const visFill = Math.min(100, Math.sqrt(nFillPct / 90) * 100); 
 
   const chartData = [visAvg, visHigh, visStrike, visSpare, visFill, vis1st];
   
