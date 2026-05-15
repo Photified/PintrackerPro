@@ -53,7 +53,7 @@ document.getElementById('limit-50-btn').addEventListener('click', (e) => updateH
 function updateHistoryChartLimit(e, newLimit) {
   document.querySelectorAll('#history-toggles .toggle-btn').forEach(b => b.classList.remove('active'));
   e.target.classList.add('active');
-  drawHistoryChart(activeProfileGames, newLimit);
+  if (currentUser) updateDashboard(activeProfileGames, newLimit);
 }
 
 // --- MODALS & PWA ---
@@ -154,7 +154,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// --- PROFILE LOADER (Self or Friend) ---
+// --- PROFILE LOADER & DASHBOARD UPDATER ---
 const MASTER_ACHIEVEMENTS = [
   { id: '200 Club 🎯', desc: 'Score 200 points or more in a single game.' },
   { id: 'Clean Game 🧼', desc: 'Complete a game without leaving any open frames.' },
@@ -191,12 +191,6 @@ async function loadProfile(targetUid) {
     
     if (isMe) currentUserFriends = data.friends || [];
 
-    let s = data.stats || {};
-    document.getElementById('stat-avg').innerText = s.average || 0;
-    document.getElementById('stat-high').innerText = s.highGame || 0;
-    document.getElementById('stat-first').innerText = s.firstBallAvg || 0;
-    document.getElementById('stat-open').innerText = `${s.openFrameRate || 0}%`;
-
     let achData = data.achievements || {};
     if (Array.isArray(achData)) {
       const migrated = {}; 
@@ -226,7 +220,6 @@ async function loadProfile(targetUid) {
       });
     });
 
-    // Fetch all games to power BOTH charts
     const gamesRef = collection(db, "games");
     const userGamesQuery = query(gamesRef, where("userId", "==", targetUid));
     
@@ -241,12 +234,58 @@ async function loadProfile(targetUid) {
       const activeBtn = document.querySelector('#history-toggles .toggle-btn.active');
       const limit = activeBtn ? parseInt(activeBtn.innerText) : 10;
       
-      drawHistoryChart(activeProfileGames, limit);
-      drawRadarChart(s, activeProfileGames); // Guarantee Radar is drawn AFTER games load!
+      // Updates 4 stat boxes, line chart, AND web chart!
+      updateDashboard(activeProfileGames, limit); 
     } catch (err) {
       console.error("Error loading games for charts:", err);
     }
   }
+}
+
+// Recalculates EVERYTHING for the selected time window (5, 10, 25, 50 games)
+function updateDashboard(allGames, limit) {
+  const displayGames = allGames.slice(-limit);
+  
+  let dTotalGames = displayGames.length;
+  let dTotalPinfall = 0, dHighGame = 0, dFirstThrows = 0, dFirstBallPins = 0;
+  let dStrikes = 0, dSpareOpps = 0, dSpares = 0, dOpenFrames = 0;
+
+  displayGames.forEach(g => {
+    dTotalPinfall += g.score;
+    if (g.score > dHighGame) dHighGame = g.score;
+    const frames = groupThrowsIntoFrames(g.throws || []);
+    frames.forEach((f, i) => {
+      if (f.length > 0 && i < 10) {
+        dFirstThrows++;
+        dFirstBallPins += f[0];
+        if (f[0] === 10) dStrikes++;
+        else {
+          dSpareOpps++;
+          if (f.length > 1 && f[0] + f[1] === 10) dSpares++;
+          else if (f.length > 1) dOpenFrames++;
+        }
+      }
+    });
+  });
+
+  const dAvg = dTotalGames > 0 ? Math.floor(dTotalPinfall / dTotalGames) : 0;
+  const dFirstBallAvg = dFirstThrows > 0 ? (dFirstBallPins / dFirstThrows) : 0;
+  const dStrikePct = dFirstThrows > 0 ? (dStrikes / dFirstThrows) * 100 : 0;
+  const dSparePct = dSpareOpps > 0 ? (dSpares / dSpareOpps) * 100 : 0;
+  const dOpenPct = dFirstThrows > 0 ? (dOpenFrames / dFirstThrows) * 100 : 0;
+  const dFillPct = 100 - dOpenPct;
+
+  // 1. Update the Top 4 Stat Boxes dynamically
+  document.getElementById('stat-avg').innerText = dAvg;
+  document.getElementById('stat-high').innerText = dHighGame;
+  document.getElementById('stat-first').innerText = dFirstBallAvg.toFixed(2);
+  document.getElementById('stat-open').innerText = dOpenPct.toFixed(1) + '%';
+
+  // 2. Redraw Line Chart
+  drawHistoryChart(displayGames, limit);
+
+  // 3. Redraw Radar Chart with Pro Curve Scaling
+  drawRadarChart(dAvg, dHighGame, dFirstBallAvg, dStrikePct, dSparePct, dFillPct);
 }
 
 // Safely returns N/A for older games that don't have throw data saved
@@ -275,9 +314,8 @@ function getGameDetails(throws) {
   return { strikes, spares };
 }
 
-function drawHistoryChart(allGames, gameLimit) {
+function drawHistoryChart(displayGames, visualLimit) {
   const ctx = document.getElementById('historyChart').getContext('2d');
-  const displayGames = allGames.slice(-gameLimit);
 
   const labels = displayGames.map((g, i) => {
     if(g.date instanceof Timestamp) return g.date.toDate().toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
@@ -313,7 +351,7 @@ function drawHistoryChart(allGames, gameLimit) {
         pointBorderColor: '#ff6f00',
         pointRadius: 4,
         pointHoverRadius: 6,
-        pointHitRadius: 25, // Massive tap area
+        pointHitRadius: 25, 
         fill: true,
         tension: 0.3
       }]
@@ -323,7 +361,7 @@ function drawHistoryChart(allGames, gameLimit) {
       maintainAspectRatio: false,
       scales: {
         y: { beginAtZero: true, max: 300, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#95b8df' } },
-        x: { grid: { display: false }, ticks: { color: '#95b8df', maxTicksLimit: gameLimit > 10 ? 10 : gameLimit } }
+        x: { grid: { display: false }, ticks: { color: '#95b8df', maxTicksLimit: visualLimit > 10 ? 10 : visualLimit } }
       },
       plugins: { 
         legend: { display: false },
@@ -350,49 +388,28 @@ function drawHistoryChart(allGames, gameLimit) {
   });
 }
 
-function drawRadarChart(stats, gamesHistory) {
+function drawRadarChart(avg, high, firstBall, strikePct, sparePct, fillPct) {
   const ctx = document.getElementById('statsChart').getContext('2d');
   
-  const avgWeb = stats.average ? (stats.average / 300) * 100 : 0;
-  const highWeb = stats.highGame ? (stats.highGame / 300) * 100 : 0;
-  const firstBallWeb = stats.firstBallAvg ? (stats.firstBallAvg / 10) * 100 : 0;
-  const fillRateWeb = stats.openFrameRate ? 100 - parseFloat(stats.openFrameRate) : 0;
+  // Visual PRO CURVE. Prevents amateur stats from clumping into an unreadable ball in the center.
+  // E.g. A PBA Pro caps out around a 65% Strike Rate. So mapping Strike% to 65 puts a 35% amateur perfectly in the middle of the web.
+  const visAvg = Math.min(100, (avg / 250) * 100);
+  const visHigh = Math.min(100, (high / 300) * 100);
+  const vis1st = Math.min(100, (firstBall / 10) * 100);
+  const visStrike = Math.min(100, (strikePct / 65) * 100); 
+  const visSpare = Math.min(100, sparePct); 
+  const visFill = Math.min(100, fillPct); 
+
+  const chartData = [visAvg, visHigh, visStrike, visSpare, visFill, vis1st];
   
-  let trueStrikes = 0;
-  let trueSpares = 0;
-  let trueSpareOpps = 0;
-  let trueFirstThrows = 0;
-
-  if (gamesHistory && gamesHistory.length > 0) {
-    gamesHistory.forEach(game => {
-      const frames = groupThrowsIntoFrames(game.throws || []);
-      frames.forEach((frame, index) => {
-        if (frame.length > 0 && index < 10) {
-          trueFirstThrows++;
-          if (frame[0] === 10) {
-            trueStrikes++;
-          } else {
-            trueSpareOpps++;
-            if (frame.length > 1 && frame[0] + frame[1] === 10) trueSpares++;
-          }
-        }
-      });
-    });
-  }
-
-  // Uses correctly calculated true throws to fix the 0% glitch
-  const strikePct = trueFirstThrows > 0 ? (trueStrikes / trueFirstThrows) * 100 : 0;
-  const sparePct = trueSpareOpps > 0 ? (trueSpares / trueSpareOpps) * 100 : 0;
-
-  const chartData = [avgWeb, highWeb, strikePct, sparePct, fillRateWeb, firstBallWeb];
-  
+  // The RAW data that appears accurately in the popup tooltips
   const realData = [
-    stats.average || 0,
-    stats.highGame || 0,
+    avg,
+    high,
     strikePct.toFixed(1) + '%',
     sparePct.toFixed(1) + '%',
-    (stats.openFrameRate ? (100 - parseFloat(stats.openFrameRate)).toFixed(1) : 0) + '%',
-    stats.firstBallAvg || 0
+    fillPct.toFixed(1) + '%',
+    firstBall.toFixed(2)
   ];
 
   if (radarChart) radarChart.destroy(); 
@@ -409,7 +426,7 @@ function drawRadarChart(stats, gamesHistory) {
         borderColor: '#ff6f00',
         pointBackgroundColor: '#ff6f00',
         pointHoverRadius: 6,
-        pointHitRadius: 25, // Massive tap area
+        pointHitRadius: 25, 
         borderWidth: 2
       }]
     },
