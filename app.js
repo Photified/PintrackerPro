@@ -10,7 +10,9 @@ const appWrapper = document.getElementById('app-wrapper');
 const mainNav = document.getElementById('main-nav');
 let currentUser = null;
 let radarChart = null; 
+let historyChart = null;
 let currentUserFriends = []; 
+let currentUserGames = [];
 
 const tabs = {
   profile: { btn: document.getElementById('tab-profile'), content: document.getElementById('profile-section') },
@@ -41,6 +43,18 @@ tabs.play.btn.addEventListener('click', () => {
 tabs.friends.btn.addEventListener('click', () => {
   switchTab('friends');
   loadFriendsList();
+});
+
+// --- CHART TOGGLES ---
+document.querySelectorAll('.toggle-btn').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    const limit = parseInt(e.target.dataset.limit);
+    if (currentUserGames) {
+      drawHistoryChart(currentUserGames, limit);
+    }
+  });
 });
 
 // --- MODAL & PWA ---
@@ -162,7 +176,6 @@ document.getElementById('back-to-me-btn').addEventListener('click', () => {
   loadProfile(currentUser.uid);
 });
 
-// Added to window so the onclick in the HTML string can access it
 window.viewFriendProfile = (friendUid) => {
   loadProfile(friendUid);
   switchTab('profile');
@@ -214,7 +227,87 @@ async function loadProfile(targetUid) {
         </div>
       `;
     }).join('');
+
+    // Load games for History Chart
+    try {
+      const gamesRef = collection(db, "games");
+      const gQuery = query(gamesRef, where("userId", "==", targetUid));
+      const gSnap = await getDocs(gQuery);
+      let fetchedGames = [];
+      gSnap.forEach(doc => fetchedGames.push(doc.data()));
+      
+      // Sort chronologically (oldest to newest)
+      fetchedGames.sort((a, b) => (a.date?.seconds || 0) - (b.date?.seconds || 0));
+      currentUserGames = fetchedGames;
+      
+      // Determine currently selected limit
+      const activeBtn = document.querySelector('.toggle-btn.active');
+      const limit = activeBtn ? parseInt(activeBtn.dataset.limit) : 10;
+      drawHistoryChart(currentUserGames, limit);
+    } catch (err) {
+      console.error("Error loading games for chart:", err);
+    }
   }
+}
+
+function drawHistoryChart(games, limit) {
+  const ctx = document.getElementById('historyChart').getContext('2d');
+  const displayGames = games.slice(-limit);
+
+  const labels = displayGames.map((g, i) => `G${games.length - displayGames.length + i + 1}`);
+  const data = displayGames.map(g => g.score);
+
+  if (historyChart) {
+    historyChart.destroy();
+  }
+
+  if (displayGames.length === 0) {
+    // Render an empty chart if no games
+    historyChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: ['No Data'], datasets: [{ data: [] }] },
+      options: { scales: { y: { display: false }, x: { display: false } }, plugins: { legend: { display: false } } }
+    });
+    return;
+  }
+
+  historyChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Score',
+        data: data,
+        borderColor: '#ff6f00',
+        backgroundColor: 'rgba(255, 111, 0, 0.1)',
+        borderWidth: 2,
+        pointBackgroundColor: '#0b3260',
+        pointBorderColor: '#ff6f00',
+        pointRadius: 4,
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { 
+          beginAtZero: true, 
+          max: 300, 
+          grid: { color: 'rgba(255,255,255,0.05)' }, 
+          ticks: { color: '#95b8df' } 
+        },
+        x: { 
+          grid: { display: false }, 
+          ticks: { color: '#95b8df' } 
+        }
+      },
+      plugins: { 
+        legend: { display: false } 
+      }
+    }
+  });
 }
 
 function drawRadarChart(stats) {

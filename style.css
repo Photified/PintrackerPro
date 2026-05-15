@@ -149,32 +149,32 @@ img#user-photo {
   margin-bottom: 1.5rem; 
   background: var(--surface); 
   border-radius: 8px; 
-  padding: 4px; /* Reduced padding to maximize screen width */
+  padding: 4px; 
   box-sizing: border-box; 
   box-shadow: 0 4px 8px rgba(0,0,0,0.3); 
-  overflow-x: hidden; /* Force squish instead of scroll */
+  overflow-x: hidden; 
 }
 
 .scorecard { 
   display: flex; 
   width: 100%; 
-  border: 1px solid #1a4a85; /* Thinned borders */
+  border: 1px solid #1a4a85; 
   background: #020e1c; 
   border-radius: 4px; 
   overflow: hidden; 
 }
 
 .score-frame { 
-  flex: 1 1 0%; /* Explicitly tell it to scale from 0 */
-  min-width: 0; /* CRITICAL: Forces flex items to shrink below content size */
-  border-right: 1px solid #1a4a85; /* Thinned borders */
+  flex: 1 1 0%; 
+  min-width: 0; 
+  border-right: 1px solid #1a4a85; 
   display: flex; 
   flex-direction: column; 
 }
 
 .score-frame:last-child { 
   border-right: none; 
-  flex: 1.5 1 0%; /* 10th frame needs slightly more room */
+  flex: 1.5 1 0%; 
 } 
 
 .frame-num { 
@@ -189,13 +189,13 @@ img#user-photo {
 
 .frame-throws { 
   display: flex; 
-  height: 22px; /* Tighter height */
+  height: 22px; 
   border-bottom: 1px solid #1a4a85; 
 }
 
 .throw-box { 
   flex: 1 1 0%; 
-  min-width: 0; /* CRITICAL: Forces flex items to shrink below content size */
+  min-width: 0; 
   display: flex; 
   justify-content: center; 
   align-items: center; 
@@ -211,7 +211,7 @@ img#user-photo {
 }
 
 .frame-score { 
-  height: 25px; /* Tighter height */
+  height: 25px; 
   display: flex; 
   justify-content: center; 
   align-items: center; 
@@ -307,11 +307,13 @@ img#user-photo {
 
 .modal-content { 
   background-color: var(--surface); 
-  margin: 15% auto; 
+  margin: 10% auto; 
   padding: 20px; 
   border: 1px solid #1a4a85; 
-  width: 80%; 
+  width: 85%; 
   max-width: 400px; 
+  max-height: 80vh;
+  overflow-y: auto;
   border-radius: 12px; 
   position: relative; 
   box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
@@ -411,6 +413,51 @@ img#user-photo {
   max-width: 400px; 
   margin: 0 auto; 
   aspect-ratio: 1; 
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding-bottom: 10px;
+  margin-bottom: 15px;
+}
+
+.chart-header h3 {
+  margin: 0;
+  border: none;
+  padding: 0;
+}
+
+.chart-toggles {
+  display: flex;
+  gap: 5px;
+}
+
+.toggle-btn {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-muted);
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  width: auto;
+  margin: 0;
+  font-weight: normal;
+}
+
+.toggle-btn.active {
+  background: var(--primary);
+  color: white;
+  font-weight: bold;
+}
+
+.line-chart-container {
+  position: relative;
+  width: 100%;
+  height: 200px;
 }
 
 /* Split Circle Indicator */
@@ -567,4 +614,33 @@ img#user-photo {
 @keyframes popIn { 
   0% { transform: scale(0); opacity: 0; } 
   100% { transform: scale(1); opacity: 1; } 
+}
+
+/* Help Modal Sections */
+.help-section {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px 15px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.help-section h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 1.1rem;
+  color: var(--primary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 6px;
+}
+
+.help-section p {
+  margin: 6px 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.help-section p b {
+  color: var(--text);
 }
