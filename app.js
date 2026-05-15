@@ -67,6 +67,24 @@ document.getElementById('tab-help').addEventListener('click', () => helpModal.st
 document.getElementById('close-help').addEventListener('click', () => helpModal.style.display = 'none');
 document.getElementById('close-info').addEventListener('click', () => infoModal.style.display = 'none');
 
+// NEW: Info button listener for the Bowler Web
+if (document.getElementById('web-info-btn')) {
+  document.getElementById('web-info-btn').addEventListener('click', () => {
+    document.getElementById('info-title').innerText = 'Metric Definitions';
+    document.getElementById('info-desc').innerHTML = `
+      <div style="text-align: left; font-size: 0.9rem; line-height: 1.5;">
+        <p><b>Avg:</b> Your average score per game.</p>
+        <p><b>High:</b> Your highest recorded game score.</p>
+        <p><b>Strike %:</b> Frames where your first throw was a strike.</p>
+        <p><b>Spare %:</b> Makeable spare opportunities you converted.</p>
+        <p><b>Fill %:</b> Frames where you scored a strike or spare (no open frames).</p>
+        <p><b>1st Ball:</b> Average pins knocked down on the first throw.</p>
+      </div>
+    `;
+    document.getElementById('info-modal').style.display = 'block';
+  });
+}
+
 window.onclick = (e) => { 
   if (e.target == helpModal) helpModal.style.display = 'none'; 
   if (e.target == infoModal) infoModal.style.display = 'none'; 
@@ -247,7 +265,6 @@ async function loadProfile(targetUid) {
   }
 }
 
-// Recalculates EVERYTHING for the selected time window
 function updateDashboard(allGames, requestedLimit) {
   const limitNum = requestedLimit === 'ALL' ? allGames.length : parseInt(requestedLimit);
   const displayGames = allGames.slice(-limitNum);
@@ -407,11 +424,9 @@ function drawRadarChart(avg, high, firstBall, strikePct, sparePct, fillPct) {
   const nSparePct = Number(sparePct) || 0;
   const nFillPct = Number(fillPct) || 0;
 
-  // SQUARE ROOT POWER CURVE
-  // Uses Math.sqrt to push the plot points outward so the web looks fuller, 
-  // preventing accurate amateur stats from clumping near the center of the web.
+  // Reduced the High Game ceiling to 230 so an average high game actually pushes outward visually.
   const visAvg = Math.min(100, Math.sqrt(nAvg / 230) * 100); 
-  const visHigh = Math.min(100, Math.sqrt(nHigh / 300) * 100);
+  const visHigh = Math.min(100, Math.sqrt(nHigh / 230) * 100); 
   const vis1st = Math.min(100, Math.sqrt(nFirstBall / 9.5) * 100); 
   const visStrike = Math.min(100, Math.sqrt(nStrikePct / 60) * 100); 
   const visSpare = Math.min(100, Math.sqrt(nSparePct / 85) * 100); 
@@ -449,20 +464,6 @@ function drawRadarChart(avg, high, firstBall, strikePct, sparePct, fillPct) {
     options: {
       responsive: true, 
       maintainAspectRatio: false,
-      onClick: (e) => {
-        document.getElementById('info-title').innerText = 'Metric Definitions';
-        document.getElementById('info-desc').innerHTML = `
-          <div style="text-align: left; font-size: 0.9rem; line-height: 1.5;">
-            <p><b>Avg:</b> Your average score per game.</p>
-            <p><b>High:</b> Your highest recorded game score.</p>
-            <p><b>Strike %:</b> Frames where your first throw was a strike.</p>
-            <p><b>Spare %:</b> Makeable spare opportunities you converted.</p>
-            <p><b>Fill %:</b> Frames where you scored a strike or spare (no open frames).</p>
-            <p><b>1st Ball:</b> Average pins knocked down on the first throw.</p>
-          </div>
-        `;
-        document.getElementById('info-modal').style.display = 'block';
-      },
       scales: { 
         r: { 
           angleLines: { color: 'rgba(255, 255, 255, 0.1)' }, 
