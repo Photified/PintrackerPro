@@ -13,7 +13,7 @@ let currentUser = null;
 let radarChart = null; 
 let historyChart = null;
 let currentUserFriends = []; 
-let activeProfileGames = []; // Stores games globally so chart toggles are instant
+let activeProfileGames = []; 
 
 const tabs = {
   profile: { btn: document.getElementById('tab-profile'), content: document.getElementById('profile-section') },
@@ -67,7 +67,6 @@ document.getElementById('tab-help').addEventListener('click', () => helpModal.st
 document.getElementById('close-help').addEventListener('click', () => helpModal.style.display = 'none');
 document.getElementById('close-info').addEventListener('click', () => infoModal.style.display = 'none');
 
-// NEW: Info button listener for the Bowler Web
 if (document.getElementById('web-info-btn')) {
   document.getElementById('web-info-btn').addEventListener('click', () => {
     document.getElementById('info-title').innerText = 'Metric Definitions';
@@ -424,13 +423,13 @@ function drawRadarChart(avg, high, firstBall, strikePct, sparePct, fillPct) {
   const nSparePct = Number(sparePct) || 0;
   const nFillPct = Number(fillPct) || 0;
 
-  // Reduced the High Game ceiling to 230 so an average high game actually pushes outward visually.
-  const visAvg = Math.min(100, Math.sqrt(nAvg / 230) * 100); 
-  const visHigh = Math.min(100, Math.sqrt(nHigh / 230) * 100); 
-  const vis1st = Math.min(100, Math.sqrt(nFirstBall / 9.5) * 100); 
-  const visStrike = Math.min(100, Math.sqrt(nStrikePct / 60) * 100); 
-  const visSpare = Math.min(100, Math.sqrt(nSparePct / 85) * 100); 
-  const visFill = Math.min(100, Math.sqrt(nFillPct / 90) * 100); 
+  // Simple proportional ceilings for an aggressive, full-looking web.
+  const visAvg = Math.min(100, (nAvg / 200) * 100); 
+  const visHigh = Math.min(100, (nHigh / 250) * 100); 
+  const vis1st = Math.min(100, (nFirstBall / 9.0) * 100); 
+  const visStrike = Math.min(100, (nStrikePct / 45) * 100); 
+  const visSpare = Math.min(100, (nSparePct / 65) * 100); 
+  const visFill = Math.min(100, (nFillPct / 85) * 100); 
 
   const chartData = [visAvg, visHigh, visStrike, visSpare, visFill, vis1st];
   
@@ -466,10 +465,14 @@ function drawRadarChart(avg, high, firstBall, strikePct, sparePct, fillPct) {
       maintainAspectRatio: false,
       scales: { 
         r: { 
+          // THIS IS THE MAGIC FIX: It forces the center to be 0 and edge to be 100!
+          min: 0, 
+          max: 100,
+          beginAtZero: true,
           angleLines: { color: 'rgba(255, 255, 255, 0.1)' }, 
           grid: { color: 'rgba(255, 255, 255, 0.1)' }, 
           pointLabels: { color: '#aaaaaa', font: { size: 11 } }, 
-          ticks: { display: false, min: 0, max: 100 } 
+          ticks: { display: false } 
         } 
       },
       plugins: { 
