@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pintracker-v6';
+const CACHE_NAME = 'pintracker-v7';
 const ASSETS = [
   '/PintrackerPro/',
   '/PintrackerPro/index.html',
