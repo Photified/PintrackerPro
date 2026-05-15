@@ -13,7 +13,7 @@ let currentUser = null;
 let radarChart = null; 
 let historyChart = null;
 let currentUserFriends = []; 
-let activeProfileGames = []; 
+let activeProfileGames = []; // Stores games globally so chart toggles are instant
 
 const tabs = {
   profile: { btn: document.getElementById('tab-profile'), content: document.getElementById('profile-section') },
@@ -381,7 +381,9 @@ function drawHistoryChart(displayGames, requestedLimit) {
       responsive: true,
       maintainAspectRatio: false,
       interaction: {
-        mode: 'index',
+        // Changed to nearest and axis 'x' to snap perfectly to the exact point's location
+        mode: 'nearest',
+        axis: 'x',
         intersect: false,
       },
       scales: {
@@ -391,6 +393,7 @@ function drawHistoryChart(displayGames, requestedLimit) {
       plugins: { 
         legend: { display: false },
         tooltip: {
+          position: 'nearest', // Forces tooltip arrow directly onto the tapped dot
           backgroundColor: 'rgba(4, 26, 51, 0.9)',
           titleColor: '#ff6f00',
           bodyFont: { size: 13 },
@@ -423,7 +426,6 @@ function drawRadarChart(avg, high, firstBall, strikePct, sparePct, fillPct) {
   const nSparePct = Number(sparePct) || 0;
   const nFillPct = Number(fillPct) || 0;
 
-  // Simple proportional ceilings for an aggressive, full-looking web.
   const visAvg = Math.min(100, (nAvg / 200) * 100); 
   const visHigh = Math.min(100, (nHigh / 250) * 100); 
   const vis1st = Math.min(100, (nFirstBall / 9.0) * 100); 
@@ -465,7 +467,6 @@ function drawRadarChart(avg, high, firstBall, strikePct, sparePct, fillPct) {
       maintainAspectRatio: false,
       scales: { 
         r: { 
-          // THIS IS THE MAGIC FIX: It forces the center to be 0 and edge to be 100!
           min: 0, 
           max: 100,
           beginAtZero: true,
