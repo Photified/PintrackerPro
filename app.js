@@ -291,7 +291,7 @@ function updateDashboard(allGames, requestedLimit) {
   // 2. Redraw Line Chart using the sliced displayGames array
   drawHistoryChart(displayGames, requestedLimit);
 
-  // 3. Redraw Radar Chart with AMATEUR Power Curve Scaling
+  // 3. Redraw Radar Chart with Pro Curve Scaling
   drawRadarChart(dAvg, dHighGame, dFirstBallAvg, dStrikePct, dSparePct, dFillPct);
 }
 
@@ -455,6 +455,21 @@ function drawRadarChart(avg, high, firstBall, strikePct, sparePct, fillPct) {
     options: {
       responsive: true, 
       maintainAspectRatio: false,
+      // Tapping anywhere on the radar triggers the definitions modal
+      onClick: (e) => {
+        document.getElementById('info-title').innerText = 'Metric Definitions';
+        document.getElementById('info-desc').innerHTML = `
+          <div style="text-align: left; font-size: 0.9rem; line-height: 1.5;">
+            <p><b>Avg:</b> Your average score per game.</p>
+            <p><b>High:</b> Your highest recorded game score.</p>
+            <p><b>Strike %:</b> Frames where your first throw was a strike.</p>
+            <p><b>Spare %:</b> Makeable spare opportunities you converted.</p>
+            <p><b>Fill %:</b> Frames where you scored a strike or spare (no open frames).</p>
+            <p><b>1st Ball:</b> Average pins knocked down on the first throw.</p>
+          </div>
+        `;
+        document.getElementById('info-modal').style.display = 'block';
+      },
       scales: { 
         r: { 
           angleLines: { color: 'rgba(255, 255, 255, 0.1)' }, 

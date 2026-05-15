@@ -13,6 +13,11 @@ body {
   margin: 0; 
   padding: 0; 
   text-align: center; 
+  /* PREVENTS ANNOYING MOBILE TEXT SELECTION/COPY POPUPS */
+  -webkit-user-select: none; 
+  -webkit-touch-callout: none; 
+  -ms-user-select: none; 
+  user-select: none; 
 }
 
 header { 
@@ -153,7 +158,7 @@ button.secondary { background-color: transparent; border: 1px solid var(--text-m
 .toggle-btn.active { background: var(--primary); color: white; font-weight: bold; }
 
 .line-chart-container { width: 100%; height: 110px; position: relative; } 
-.chart-container.radar-compact { width: 100%; max-width: 250px; margin: 0 auto; height: 140px; position: relative; } 
+.chart-container.radar-compact { width: 100%; max-width: 250px; margin: 0 auto; height: 140px; position: relative; cursor: pointer; } 
 
 
 /* Scorecard */
@@ -206,3 +211,10 @@ button.secondary { background-color: transparent; border: 1px solid var(--text-m
 .friend-details p { margin: 0; font-size: 0.8rem; color: var(--text-muted); }
 .add-friend-btn { padding: 6px 12px; font-size: 0.8rem; width: auto; margin: 0; position: relative; z-index: 2; }
 .remove-friend-btn { background: transparent; border: 1px solid #e53935; color: #e53935; padding: 6px 12px; font-size: 0.8rem; width: auto; margin: 0; position: relative; z-index: 2; }
+
+/* Keep search input and textareas selectable so users can type! */
+input, textarea {
+  -webkit-user-select: auto;
+  -ms-user-select: auto;
+  user-select: auto;
+}
