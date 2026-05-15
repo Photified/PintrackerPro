@@ -49,7 +49,6 @@ document.getElementById('limit-5-btn').addEventListener('click', (e) => updateHi
 document.getElementById('limit-10-btn').addEventListener('click', (e) => updateHistoryChartLimit(e, 10));
 document.getElementById('limit-25-btn').addEventListener('click', (e) => updateHistoryChartLimit(e, 25));
 document.getElementById('limit-50-btn').addEventListener('click', (e) => updateHistoryChartLimit(e, 50));
-// New ALL Button listener
 if(document.getElementById('limit-all-btn')) {
   document.getElementById('limit-all-btn').addEventListener('click', (e) => updateHistoryChartLimit(e, 'ALL'));
 }
@@ -292,7 +291,7 @@ function updateDashboard(allGames, requestedLimit) {
   // 2. Redraw Line Chart using the sliced displayGames array
   drawHistoryChart(displayGames, requestedLimit);
 
-  // 3. Redraw Radar Chart with Pro Curve Scaling
+  // 3. Redraw Radar Chart with AMATEUR Power Curve Scaling
   drawRadarChart(dAvg, dHighGame, dFirstBallAvg, dStrikePct, dSparePct, dFillPct);
 }
 
@@ -364,7 +363,7 @@ function drawHistoryChart(displayGames, requestedLimit) {
         pointBorderColor: '#ff6f00',
         pointRadius: dynamicRadius,
         pointHoverRadius: dynamicHover,
-        pointHitRadius: 25, // Massive tap area
+        pointHitRadius: 25, 
         fill: true,
         tension: 0.3
       }]
@@ -372,14 +371,13 @@ function drawHistoryChart(displayGames, requestedLimit) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      // THIS IS THE MAGIC FIX: "Magnetic" interaction mode instead of precise clicking
       interaction: {
         mode: 'index',
         intersect: false,
       },
       scales: {
         y: { beginAtZero: true, max: 300, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#95b8df' } },
-        x: { grid: { display: false }, ticks: { color: '#95b8df', maxTicksLimit: 10 } } // Keeps x-axis text from overlapping
+        x: { grid: { display: false }, ticks: { color: '#95b8df', maxTicksLimit: 10 } }
       },
       plugins: { 
         legend: { display: false },
@@ -409,24 +407,31 @@ function drawHistoryChart(displayGames, requestedLimit) {
 function drawRadarChart(avg, high, firstBall, strikePct, sparePct, fillPct) {
   const ctx = document.getElementById('statsChart').getContext('2d');
   
-  // Visual PRO CURVE. Prevents amateur stats from clumping into an unreadable ball in the center.
-  const visAvg = Math.min(100, (avg / 250) * 100);
-  const visHigh = Math.min(100, (high / 300) * 100);
-  const vis1st = Math.min(100, (firstBall / 10) * 100);
-  const visStrike = Math.min(100, (strikePct / 65) * 100); 
-  const visSpare = Math.min(100, sparePct); 
-  const visFill = Math.min(100, fillPct); 
+  const nAvg = Number(avg) || 0;
+  const nHigh = Number(high) || 0;
+  const nFirstBall = Number(firstBall) || 0;
+  const nStrikePct = Number(strikePct) || 0;
+  const nSparePct = Number(sparePct) || 0;
+  const nFillPct = Number(fillPct) || 0;
+
+  // Visual AMATEUR CURVE. Pushes stats outwards to make the web look full and rewarding.
+  const visAvg = Math.min(100, (nAvg / 220) * 100); 
+  const visHigh = Math.min(100, (nHigh / 280) * 100);
+  const vis1st = Math.min(100, (nFirstBall / 9) * 100); 
+  const visStrike = Math.min(100, (nStrikePct / 50) * 100); 
+  const visSpare = Math.min(100, (nSparePct / 70) * 100); 
+  const visFill = Math.min(100, (nFillPct / 85) * 100); 
 
   const chartData = [visAvg, visHigh, visStrike, visSpare, visFill, vis1st];
   
   // The RAW data that appears accurately in the popup tooltips
   const realData = [
-    avg,
-    high,
-    strikePct.toFixed(1) + '%',
-    sparePct.toFixed(1) + '%',
-    fillPct.toFixed(1) + '%',
-    firstBall.toFixed(2)
+    nAvg,
+    nHigh,
+    nStrikePct.toFixed(1) + '%',
+    nSparePct.toFixed(1) + '%',
+    nFillPct.toFixed(1) + '%',
+    nFirstBall.toFixed(2)
   ];
 
   if (radarChart) radarChart.destroy(); 
@@ -443,7 +448,7 @@ function drawRadarChart(avg, high, firstBall, strikePct, sparePct, fillPct) {
         borderColor: '#ff6f00',
         pointBackgroundColor: '#ff6f00',
         pointHoverRadius: 6,
-        pointHitRadius: 25, // Massive tap area
+        pointHitRadius: 20, 
         borderWidth: 2
       }]
     },
