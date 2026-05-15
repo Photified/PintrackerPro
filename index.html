@@ -35,49 +35,49 @@
           ⬅ Back to My Profile
         </button>
 
-        <div class="profile-card">
-          <div class="photo-wrapper" id="photo-wrapper">
-            <img id="user-photo" src="" alt="Profile Photo">
-            <div class="photo-overlay" id="photo-overlay">✏️</div>
-            <input type="file" id="photo-upload" accept="image/*" style="display: none;">
+        <div class="profile-header-card">
+          <div class="profile-identity">
+            <div class="photo-wrapper" id="photo-wrapper">
+              <img id="user-photo" src="" alt="Profile Photo">
+              <div class="photo-overlay" id="photo-overlay">✏️</div>
+              <input type="file" id="photo-upload" accept="image/*" style="display: none;">
+            </div>
+            <h2 id="user-name">Bowler</h2>
           </div>
           
-          <h2 id="user-name">Bowler</h2>
-          
-          <div class="stats-grid">
+          <div class="profile-achievements">
+            <h3>Achievements</h3>
+            <div id="achievements-container" class="achievements-grid"></div>
+          </div>
+        </div>
+
+        <div class="profile-stats-card">
+          <div class="stats-grid compact-stats">
             <div class="stat-box"><h3>Average</h3><p id="stat-avg">0</p></div>
             <div class="stat-box"><h3>High Game</h3><p id="stat-high">0</p></div>
-            <div class="stat-box"><h3>1st Ball Avg</h3><p id="stat-first">0.0</p></div>
+            <div class="stat-box"><h3>1st Ball</h3><p id="stat-first">0.0</p></div>
             <div class="stat-box"><h3>Open Frames</h3><p id="stat-open">0%</p></div>
           </div>
         </div>
 
-        <div class="chart-card">
+        <div class="profile-charts-card">
           <div class="chart-header">
             <h3>Score History</h3>
             <div class="chart-toggles" id="history-toggles">
-              <button class="toggle-btn" data-limit="5">5</button>
-              <button class="toggle-btn active" data-limit="10">10</button>
-              <button class="toggle-btn" data-limit="25">25</button>
-              <button class="toggle-btn" data-limit="50">50</button>
+              <button class="toggle-btn" id="limit-5-btn">5</button>
+              <button class="toggle-btn active" id="limit-10-btn">10</button>
+              <button class="toggle-btn" id="limit-25-btn">25</button>
+              <button class="toggle-btn" id="limit-50-btn">50</button>
             </div>
           </div>
           <div class="line-chart-container">
             <canvas id="historyChart"></canvas>
           </div>
-        </div>
-
-        <div class="chart-card">
-          <h3>Bowler Web</h3>
-          <div class="chart-container">
+          
+          <h3 class="web-header">Bowler Web</h3>
+          <div class="chart-container radar-compact">
             <canvas id="statsChart"></canvas>
           </div>
-        </div>
-
-        <div class="achievements-card">
-          <h3>Achievements</h3>
-          <div id="achievements-container" class="achievements-grid">
-            </div>
         </div>
 
         <button id="logout-btn" class="secondary">Sign Out</button>
