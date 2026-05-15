@@ -1,7 +1,8 @@
 import { 
   auth, db, provider, signInWithPopup, onAuthStateChanged, signOut, 
   doc, setDoc, getDoc, collection, addDoc,
-  query, where, getDocs, arrayUnion, arrayRemove
+  query, where, getDocs, arrayUnion, arrayRemove,
+  Timestamp, orderBy, limit as firestoreLimit
 } from './firebase-setup.js';
 
 // --- UI ELEMENTS & NAV ---
@@ -46,16 +47,45 @@ tabs.friends.btn.addEventListener('click', () => {
 });
 
 // --- CHART TOGGLES ---
-document.querySelectorAll('.toggle-btn').forEach(btn => {
-  btn.addEventListener('click', (e) => {
-    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
-    e.target.classList.add('active');
-    const limit = parseInt(e.target.dataset.limit);
-    if (currentUserGames) {
-      drawHistoryChart(currentUserGames, limit);
-    }
-  });
+// These are not needed with the direct `query` approach, 
+// but added for completeness of original app logic.
+// The data-limit logic is handled in `loadProfile`.
+
+// document.querySelectorAll('.toggle-btn').forEach(btn => {
+//   btn.addEventListener('click', (e) => {
+//     document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+//     e.target.classList.add('active');
+//     const limit = parseInt(e.target.dataset.limit);
+//     if (currentUser) {
+//       // Refetch or redraw based on the limit
+//       loadProfile(currentUser.uid); // This will handle the limit update
+//     }
+//   });
+// });
+
+// --- direct event listener for direct limit buttons ---
+document.getElementById('limit-5-btn').addEventListener('click', (e) => {
+  updateHistoryChartLimit(e, 5);
 });
+document.getElementById('limit-10-btn').addEventListener('click', (e) => {
+  updateHistoryChartLimit(e, 10);
+});
+document.getElementById('limit-25-btn').addEventListener('click', (e) => {
+  updateHistoryChartLimit(e, 25);
+});
+document.getElementById('limit-50-btn').addEventListener('click', (e) => {
+  updateHistoryChartLimit(e, 50);
+});
+
+function updateHistoryChartLimit(e, newLimit) {
+  // Update button active state
+  document.querySelectorAll('#history-toggles .toggle-btn').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  
+  if (currentUser) {
+    drawHistoryChart(currentUser.uid, newLimit);
+  }
+}
 
 // --- MODAL & PWA ---
 const helpModal = document.getElementById('help-modal');
@@ -148,7 +178,7 @@ onAuthStateChanged(auth, async (user) => {
       name: user.displayName, 
       email: user.email.toLowerCase(), 
       defaultPhoto: user.photoURL, 
-      lastLogin: new Date() 
+      lastLogin: Timestamp.now()
     }, { merge: true });
     
     loadProfile(currentUser.uid); // Load self initially
@@ -228,86 +258,109 @@ async function loadProfile(targetUid) {
       `;
     }).join('');
 
-    // Load games for History Chart
-    try {
-      const gamesRef = collection(db, "games");
-      const gQuery = query(gamesRef, where("userId", "==", targetUid));
-      const gSnap = await getDocs(gQuery);
-      let fetchedGames = [];
-      gSnap.forEach(doc => fetchedGames.push(doc.data()));
-      
-      // Sort chronologically (oldest to newest)
-      fetchedGames.sort((a, b) => (a.date?.seconds || 0) - (b.date?.seconds || 0));
-      currentUserGames = fetchedGames;
-      
-      // Determine currently selected limit
-      const activeBtn = document.querySelector('.toggle-btn.active');
-      const limit = activeBtn ? parseInt(activeBtn.dataset.limit) : 10;
-      drawHistoryChart(currentUserGames, limit);
-    } catch (err) {
-      console.error("Error loading games for chart:", err);
-    }
+    // --- Load History Line Chart with initial limit (e.g., 10) ---
+    drawHistoryChart(targetUid, 10);
   }
 }
 
-function drawHistoryChart(games, limit) {
+// Direct query approach for History Chart, respecting the limit
+async function drawHistoryChart(uid, gameLimit) {
   const ctx = document.getElementById('historyChart').getContext('2d');
-  const displayGames = games.slice(-limit);
+  const gamesRef = collection(db, "games");
+  const gQuery = query(
+    gamesRef, 
+    where("userId", "==", uid),
+    orderBy("date", "asc"), // We need ascending for Chart.js date axis, but limit queries can only sort desc if limiting
+    firestoreLimit(gameLimit) // This gives us up to 50 chronologically ascending games, which might not be the most *recent*
+  );
 
-  const labels = displayGames.map((g, i) => `G${games.length - displayGames.length + i + 1}`);
-  const data = displayGames.map(g => g.score);
+  // A different way for 'most recent ASC':
+  // Query 1: most recent games (desc)
+  // Query 2: re-sort that result locally ascending.
+  const recentGamesQuery = query(
+    gamesRef,
+    where("userId", "==", uid),
+    orderBy("date", "desc"),
+    firestoreLimit(gameLimit)
+  );
+  
+  try {
+    const gSnap = await getDocs(recentGamesQuery);
+    let displayGames = [];
+    gSnap.forEach(doc => displayGames.push(doc.data()));
+    
+    // Sort chronologically ascending (oldest to newest)
+    displayGames.sort((a, b) => (a.date?.seconds || 0) - (b.date?.seconds || 0));
 
-  if (historyChart) {
-    historyChart.destroy();
-  }
+    const labels = displayGames.map((g, i) => {
+      if(g.date instanceof Timestamp) {
+        return g.date.toDate().toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+      }
+      return `G${i+1}`; // Fallback if no date or wrong format
+    });
+    const data = displayGames.map(g => g.score);
 
-  if (displayGames.length === 0) {
-    // Render an empty chart if no games
+    if (historyChart) {
+      historyChart.destroy();
+    }
+
+    if (displayGames.length === 0) {
+      // Render an empty chart if no games
+      historyChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: ['No Data'], datasets: [{ data: [] }] },
+        options: { scales: { y: { display: false }, x: { display: false } }, plugins: { legend: { display: false } } }
+      });
+      return;
+    }
+
     historyChart = new Chart(ctx, {
       type: 'line',
-      data: { labels: ['No Data'], datasets: [{ data: [] }] },
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Score',
+          data: data,
+          borderColor: '#ff6f00',
+          backgroundColor: 'rgba(255, 111, 0, 0.1)',
+          borderWidth: 2,
+          pointBackgroundColor: '#0b3260',
+          pointBorderColor: '#ff6f00',
+          pointRadius: 4,
+          fill: true,
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { 
+            beginAtZero: true, 
+            max: 300, 
+            grid: { color: 'rgba(255,255,255,0.05)' }, 
+            ticks: { color: '#95b8df' } 
+          },
+          x: { 
+            grid: { display: false }, 
+            ticks: { color: '#95b8df', maxTicksLimit: gameLimit > 10 ? 10 : gameLimit } // help readability on mobile
+          }
+        },
+        plugins: { 
+          legend: { display: false } 
+        }
+      }
+    });
+  } catch (err) {
+    console.error("Error loading games for history chart:", err);
+    // Render error state on chart
+    if (historyChart) historyChart.destroy();
+    historyChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: ['Error'], datasets: [{ data: [] }] },
       options: { scales: { y: { display: false }, x: { display: false } }, plugins: { legend: { display: false } } }
     });
-    return;
   }
-
-  historyChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'Score',
-        data: data,
-        borderColor: '#ff6f00',
-        backgroundColor: 'rgba(255, 111, 0, 0.1)',
-        borderWidth: 2,
-        pointBackgroundColor: '#0b3260',
-        pointBorderColor: '#ff6f00',
-        pointRadius: 4,
-        fill: true,
-        tension: 0.3
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: { 
-          beginAtZero: true, 
-          max: 300, 
-          grid: { color: 'rgba(255,255,255,0.05)' }, 
-          ticks: { color: '#95b8df' } 
-        },
-        x: { 
-          grid: { display: false }, 
-          ticks: { color: '#95b8df' } 
-        }
-      },
-      plugins: { 
-        legend: { display: false } 
-      }
-    }
-  });
 }
 
 function drawRadarChart(stats) {
@@ -871,7 +924,7 @@ async function finishGame() {
   try {
     await addDoc(collection(db, "games"), { 
       userId: currentUser.uid, 
-      date: new Date(), 
+      date: Timestamp.now(), 
       throws: flatThrowsArray, 
       splits: splitIndices, 
       score: score 
