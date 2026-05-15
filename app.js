@@ -49,6 +49,10 @@ document.getElementById('limit-5-btn').addEventListener('click', (e) => updateHi
 document.getElementById('limit-10-btn').addEventListener('click', (e) => updateHistoryChartLimit(e, 10));
 document.getElementById('limit-25-btn').addEventListener('click', (e) => updateHistoryChartLimit(e, 25));
 document.getElementById('limit-50-btn').addEventListener('click', (e) => updateHistoryChartLimit(e, 50));
+// New ALL Button listener
+if(document.getElementById('limit-all-btn')) {
+  document.getElementById('limit-all-btn').addEventListener('click', (e) => updateHistoryChartLimit(e, 'ALL'));
+}
 
 function updateHistoryChartLimit(e, newLimit) {
   document.querySelectorAll('#history-toggles .toggle-btn').forEach(b => b.classList.remove('active'));
@@ -232,7 +236,10 @@ async function loadProfile(targetUid) {
       activeProfileGames = allGames; 
       
       const activeBtn = document.querySelector('#history-toggles .toggle-btn.active');
-      const limit = activeBtn ? parseInt(activeBtn.innerText) : 10;
+      let limit = 10;
+      if (activeBtn) {
+        limit = activeBtn.innerText === 'ALL' ? 'ALL' : parseInt(activeBtn.innerText);
+      }
       
       // Updates 4 stat boxes, line chart, AND web chart!
       updateDashboard(activeProfileGames, limit); 
@@ -242,9 +249,10 @@ async function loadProfile(targetUid) {
   }
 }
 
-// Recalculates EVERYTHING for the selected time window (5, 10, 25, 50 games)
-function updateDashboard(allGames, limit) {
-  const displayGames = allGames.slice(-limit);
+// Recalculates EVERYTHING for the selected time window
+function updateDashboard(allGames, requestedLimit) {
+  const limitNum = requestedLimit === 'ALL' ? allGames.length : parseInt(requestedLimit);
+  const displayGames = allGames.slice(-limitNum);
   
   let dTotalGames = displayGames.length;
   let dTotalPinfall = 0, dHighGame = 0, dFirstThrows = 0, dFirstBallPins = 0;
@@ -281,8 +289,8 @@ function updateDashboard(allGames, limit) {
   document.getElementById('stat-first').innerText = dFirstBallAvg.toFixed(2);
   document.getElementById('stat-open').innerText = dOpenPct.toFixed(1) + '%';
 
-  // 2. Redraw Line Chart
-  drawHistoryChart(displayGames, limit);
+  // 2. Redraw Line Chart using the sliced displayGames array
+  drawHistoryChart(displayGames, requestedLimit);
 
   // 3. Redraw Radar Chart with Pro Curve Scaling
   drawRadarChart(dAvg, dHighGame, dFirstBallAvg, dStrikePct, dSparePct, dFillPct);
@@ -314,8 +322,9 @@ function getGameDetails(throws) {
   return { strikes, spares };
 }
 
-function drawHistoryChart(displayGames, visualLimit) {
+function drawHistoryChart(displayGames, requestedLimit) {
   const ctx = document.getElementById('historyChart').getContext('2d');
+  const gameCount = displayGames.length;
 
   const labels = displayGames.map((g, i) => {
     if(g.date instanceof Timestamp) return g.date.toDate().toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
@@ -336,6 +345,10 @@ function drawHistoryChart(displayGames, visualLimit) {
     return;
   }
 
+  // Dynamic sizing based on how crammed the graph is
+  const dynamicRadius = gameCount > 25 ? 2 : 4;
+  const dynamicHover = gameCount > 25 ? 4 : 6;
+
   historyChart = new Chart(ctx, {
     type: 'line',
     data: {
@@ -349,9 +362,9 @@ function drawHistoryChart(displayGames, visualLimit) {
         borderWidth: 2,
         pointBackgroundColor: '#0b3260',
         pointBorderColor: '#ff6f00',
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        pointHitRadius: 25, 
+        pointRadius: dynamicRadius,
+        pointHoverRadius: dynamicHover,
+        pointHitRadius: 25, // Massive tap area
         fill: true,
         tension: 0.3
       }]
@@ -359,9 +372,14 @@ function drawHistoryChart(displayGames, visualLimit) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      // THIS IS THE MAGIC FIX: "Magnetic" interaction mode instead of precise clicking
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
       scales: {
         y: { beginAtZero: true, max: 300, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#95b8df' } },
-        x: { grid: { display: false }, ticks: { color: '#95b8df', maxTicksLimit: visualLimit > 10 ? 10 : visualLimit } }
+        x: { grid: { display: false }, ticks: { color: '#95b8df', maxTicksLimit: 10 } } // Keeps x-axis text from overlapping
       },
       plugins: { 
         legend: { display: false },
@@ -392,7 +410,6 @@ function drawRadarChart(avg, high, firstBall, strikePct, sparePct, fillPct) {
   const ctx = document.getElementById('statsChart').getContext('2d');
   
   // Visual PRO CURVE. Prevents amateur stats from clumping into an unreadable ball in the center.
-  // E.g. A PBA Pro caps out around a 65% Strike Rate. So mapping Strike% to 65 puts a 35% amateur perfectly in the middle of the web.
   const visAvg = Math.min(100, (avg / 250) * 100);
   const visHigh = Math.min(100, (high / 300) * 100);
   const vis1st = Math.min(100, (firstBall / 10) * 100);
@@ -426,7 +443,7 @@ function drawRadarChart(avg, high, firstBall, strikePct, sparePct, fillPct) {
         borderColor: '#ff6f00',
         pointBackgroundColor: '#ff6f00',
         pointHoverRadius: 6,
-        pointHitRadius: 25, 
+        pointHitRadius: 25, // Massive tap area
         borderWidth: 2
       }]
     },
