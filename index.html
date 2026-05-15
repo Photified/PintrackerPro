@@ -179,6 +179,14 @@
     </div>
   </div>
 
+  <div id="info-modal" class="modal">
+    <div class="modal-content" style="text-align: center; padding: 25px; border-color: var(--primary);">
+      <h2 id="info-title" style="margin-top: 0; margin-bottom: 10px; color: var(--primary);">Title</h2>
+      <p id="info-desc" style="color: var(--text-muted); margin-bottom: 20px; font-size: 1.1rem;">Description goes here.</p>
+      <button id="close-info" style="width: auto; padding: 10px 30px;">Got it</button>
+    </div>
+  </div>
+
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/PintrackerPro/sw.js', { scope: '/PintrackerPro/' })

@@ -86,7 +86,11 @@ button.secondary { background-color: transparent; border: 1px solid var(--text-m
   align-items: center;
   justify-content: center;
   text-align: center;
+  cursor: pointer;
+  transition: transform 0.1s;
 }
+
+.achievement-wrapper:active { transform: scale(0.95); }
 
 .achievement-wrapper.ghosted {
   background: rgba(255, 255, 255, 0.03);
@@ -123,7 +127,7 @@ button.secondary { background-color: transparent; border: 1px solid var(--text-m
 
 .stats-grid.compact-stats {
   display: grid; 
-  grid-template-columns: repeat(4, 1fr); /* 4 columns! */
+  grid-template-columns: repeat(4, 1fr); 
   gap: 6px; 
   margin-top: 0;
 }
@@ -148,8 +152,8 @@ button.secondary { background-color: transparent; border: 1px solid var(--text-m
 .toggle-btn { background: rgba(255,255,255,0.1); color: var(--text-muted); border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; width: auto; margin: 0; font-weight: normal; }
 .toggle-btn.active { background: var(--primary); color: white; font-weight: bold; }
 
-.line-chart-container { width: 100%; height: 110px; position: relative; } /* Shrunk! */
-.chart-container.radar-compact { width: 100%; max-width: 250px; margin: 0 auto; height: 140px; position: relative; } /* Shrunk! */
+.line-chart-container { width: 100%; height: 110px; position: relative; } 
+.chart-container.radar-compact { width: 100%; max-width: 250px; margin: 0 auto; height: 140px; position: relative; } 
 
 
 /* Scorecard */

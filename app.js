@@ -69,18 +69,23 @@ function updateHistoryChartLimit(e, newLimit) {
   }
 }
 
-// --- MODAL & PWA ---
+// --- MODALS & PWA ---
 const helpModal = document.getElementById('help-modal');
+const infoModal = document.getElementById('info-modal');
+
 document.getElementById('tab-help').addEventListener('click', () => {
   helpModal.style.display = 'block';
 });
 document.getElementById('close-help').addEventListener('click', () => {
   helpModal.style.display = 'none';
 });
+document.getElementById('close-info').addEventListener('click', () => {
+  infoModal.style.display = 'none';
+});
+
 window.onclick = (e) => { 
-  if (e.target == helpModal) {
-    helpModal.style.display = 'none'; 
-  }
+  if (e.target == helpModal) helpModal.style.display = 'none'; 
+  if (e.target == infoModal) infoModal.style.display = 'none'; 
 }
 
 let deferredPrompt;
@@ -175,17 +180,16 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // --- PROFILE LOADER (Self or Friend) ---
-// Exact 9 items for the perfect 3x3 Grid
 const MASTER_ACHIEVEMENTS = [
-  { id: '200 Club 🎯', desc: 'Score 200+' },
-  { id: 'Clean Game 🧼', desc: 'No open frames' },
-  { id: 'Perfect Game 👑', desc: 'Score 300' },
-  { id: 'Double 🎳', desc: '2 strikes in a row' },
-  { id: 'Turkey 🦃', desc: '3 strikes in a row' },
-  { id: 'Hambone 🍖', desc: '4 strikes in a row' },
-  { id: 'Clutch Finisher 🧊', desc: '3 strikes in 10th' },
-  { id: 'Split Converter 🎳', desc: 'Convert a split' },
-  { id: 'Gutter-Free 🛡️', desc: 'No gutters' }
+  { id: '200 Club 🎯', desc: 'Score 200 points or more in a single game.' },
+  { id: 'Clean Game 🧼', desc: 'Complete a game without leaving any open frames.' },
+  { id: 'Perfect Game 👑', desc: 'Bowl a flawless 300 game.' },
+  { id: 'Double 🎳', desc: 'Bowl 2 strikes in a row.' },
+  { id: 'Turkey 🦃', desc: 'Bowl 3 strikes in a row.' },
+  { id: 'Hambone 🍖', desc: 'Bowl 4 strikes in a row.' },
+  { id: 'Clutch Finisher 🧊', desc: 'Strike out the 10th frame (3 strikes).' },
+  { id: 'Split Converter 🎳', desc: 'Successfully pick up a split spare.' },
+  { id: 'Gutter-Free 🛡️', desc: 'Complete a game without throwing a single gutter ball.' }
 ];
 
 document.getElementById('back-to-me-btn').addEventListener('click', () => {
@@ -232,16 +236,27 @@ async function loadProfile(targetUid) {
     }
 
     const achContainer = document.getElementById('achievements-container');
-    achContainer.innerHTML = MASTER_ACHIEVEMENTS.map(ach => {
+    achContainer.innerHTML = MASTER_ACHIEVEMENTS.map((ach, idx) => {
       const count = achData[ach.id] || 0;
       const isUnlocked = count > 0;
       return `
-        <div class="achievement-wrapper ${isUnlocked ? '' : 'ghosted'}">
+        <div class="achievement-wrapper ${isUnlocked ? '' : 'ghosted'}" data-idx="${idx}">
           <div class="badge">${ach.id}</div>
           <div class="ach-count ${isUnlocked ? 'active-count' : ''}">${isUnlocked ? `x${count}` : '0'}</div>
         </div>
       `;
     }).join('');
+
+    // Attach click listeners to achievements for the popups
+    document.querySelectorAll('.achievement-wrapper').forEach(wrapper => {
+      wrapper.addEventListener('click', () => {
+        const idx = wrapper.getAttribute('data-idx');
+        const ach = MASTER_ACHIEVEMENTS[idx];
+        document.getElementById('info-title').innerText = ach.id;
+        document.getElementById('info-desc').innerText = ach.desc;
+        document.getElementById('info-modal').style.display = 'block';
+      });
+    });
 
     const activeBtn = document.querySelector('#history-toggles .toggle-btn.active');
     const limit = activeBtn ? parseInt(activeBtn.innerText) : 10;
@@ -249,12 +264,35 @@ async function loadProfile(targetUid) {
   }
 }
 
-// Bypassing Firebase Index limitation by pulling ALL games for a user and sorting locally in JS
+// Helper to count game specifics for the line chart tooltips
+function getGameDetails(throws) {
+  if (!throws || !Array.isArray(throws)) return { strikes: 0, spares: 0 };
+  let strikes = 0, spares = 0;
+  let throwIndex = 0;
+  
+  for (let frame = 0; frame < 10; frame++) {
+    if (throws[throwIndex] === 10) { 
+      strikes++;
+      throwIndex++;
+      if (frame === 9) { 
+        if (throws[throwIndex] === 10) strikes++;
+        if (throws[throwIndex+1] === 10) strikes++;
+        else if (throws[throwIndex] !== undefined && throws[throwIndex] !== 10 && throws[throwIndex] + (throws[throwIndex+1]||0) === 10) spares++;
+      }
+    } else if ((throws[throwIndex] || 0) + (throws[throwIndex + 1] || 0) === 10) { 
+      spares++;
+      throwIndex += 2;
+      if (frame === 9 && throws[throwIndex] === 10) strikes++;
+    } else { 
+      throwIndex += 2; 
+    }
+  }
+  return { strikes, spares };
+}
+
 async function drawHistoryChart(uid, gameLimit) {
   const ctx = document.getElementById('historyChart').getContext('2d');
   const gamesRef = collection(db, "games");
-  
-  // Notice orderBy is removed to fix the missing composite index error
   const userGamesQuery = query(gamesRef, where("userId", "==", uid));
   
   try {
@@ -262,19 +300,16 @@ async function drawHistoryChart(uid, gameLimit) {
     let displayGames = [];
     gSnap.forEach(doc => displayGames.push(doc.data()));
     
-    // Sort ascending locally
     displayGames.sort((a, b) => (a.date?.seconds || 0) - (b.date?.seconds || 0));
-
-    // Slice to the requested limit
     displayGames = displayGames.slice(-gameLimit);
 
     const labels = displayGames.map((g, i) => {
-      if(g.date instanceof Timestamp) {
-        return g.date.toDate().toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
-      }
+      if(g.date instanceof Timestamp) return g.date.toDate().toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
       return `G${i+1}`; 
     });
+    
     const data = displayGames.map(g => g.score);
+    const detailsData = displayGames.map(g => getGameDetails(g.throws));
 
     if (historyChart) historyChart.destroy();
 
@@ -282,7 +317,7 @@ async function drawHistoryChart(uid, gameLimit) {
       historyChart = new Chart(ctx, {
         type: 'line',
         data: { labels: ['No Data'], datasets: [{ data: [] }] },
-        options: { scales: { y: { display: false }, x: { display: false } }, plugins: { legend: { display: false } } }
+        options: { scales: { y: { display: false }, x: { display: false } }, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
       });
       return;
     }
@@ -294,12 +329,14 @@ async function drawHistoryChart(uid, gameLimit) {
         datasets: [{
           label: 'Score',
           data: data,
+          gameDetails: detailsData, // Attach our calculated details here
           borderColor: '#ff6f00',
           backgroundColor: 'rgba(255, 111, 0, 0.1)',
           borderWidth: 2,
           pointBackgroundColor: '#0b3260',
           pointBorderColor: '#ff6f00',
           pointRadius: 4,
+          pointHoverRadius: 6,
           fill: true,
           tension: 0.3
         }]
@@ -308,28 +345,36 @@ async function drawHistoryChart(uid, gameLimit) {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-          y: { 
-            beginAtZero: true, 
-            max: 300, 
-            grid: { color: 'rgba(255,255,255,0.05)' }, 
-            ticks: { color: '#95b8df' } 
-          },
-          x: { 
-            grid: { display: false }, 
-            ticks: { color: '#95b8df', maxTicksLimit: gameLimit > 10 ? 10 : gameLimit }
-          }
+          y: { beginAtZero: true, max: 300, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#95b8df' } },
+          x: { grid: { display: false }, ticks: { color: '#95b8df', maxTicksLimit: gameLimit > 10 ? 10 : gameLimit } }
         },
-        plugins: { legend: { display: false } }
+        plugins: { 
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(4, 26, 51, 0.9)',
+            titleColor: '#ff6f00',
+            bodyFont: { size: 13 },
+            padding: 10,
+            displayColors: false,
+            callbacks: {
+              title: function(context) {
+                return context[0].label;
+              },
+              label: function(context) {
+                const details = context.dataset.gameDetails[context.dataIndex];
+                return [
+                  `Score: ${context.raw}`,
+                  `Strikes: ${details.strikes}`,
+                  `Spares: ${details.spares}`
+                ];
+              }
+            }
+          }
+        }
       }
     });
   } catch (err) {
     console.error("Error loading games for history chart:", err);
-    if (historyChart) historyChart.destroy();
-    historyChart = new Chart(ctx, {
-      type: 'line',
-      data: { labels: ['Error'], datasets: [{ data: [] }] },
-      options: { scales: { y: { display: false }, x: { display: false } }, plugins: { legend: { display: false } } }
-    });
   }
 }
 
@@ -349,7 +394,18 @@ function drawRadarChart(stats) {
     sparePct = stats.totalSpareOpps > 0 ? (stats.totalSpares / stats.totalSpareOpps) * 100 : 0;
   }
 
+  // The scaled data to fit on the 0-100 radar web
   const chartData = [avgWeb, highWeb, strikePct, sparePct, fillRateWeb, firstBallWeb];
+  
+  // The TRUE data to display in the tooltips when tapped
+  const realData = [
+    stats.average || 0,
+    stats.highGame || 0,
+    strikePct.toFixed(1) + '%',
+    sparePct.toFixed(1) + '%',
+    (stats.openFrameRate ? (100 - parseFloat(stats.openFrameRate)).toFixed(1) : 0) + '%',
+    stats.firstBallAvg || 0
+  ];
 
   if (radarChart) radarChart.destroy(); 
 
@@ -360,9 +416,11 @@ function drawRadarChart(stats) {
       datasets: [{
         label: 'Bowler Profile',
         data: chartData,
+        rawValues: realData, // Attach raw data here
         backgroundColor: 'rgba(255, 111, 0, 0.2)',
         borderColor: '#ff6f00',
         pointBackgroundColor: '#ff6f00',
+        pointHoverRadius: 6,
         borderWidth: 2
       }]
     },
@@ -377,7 +435,21 @@ function drawRadarChart(stats) {
           ticks: { display: false, min: 0, max: 100 } 
         } 
       },
-      plugins: { legend: { display: false } }
+      plugins: { 
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(4, 26, 51, 0.9)',
+          displayColors: false,
+          bodyFont: { size: 14, weight: 'bold' },
+          callbacks: {
+            title: function() { return null; }, // Hide the default title
+            label: function(context) {
+              // Pull the true unscaled data for the popup
+              return `${context.chart.data.labels[context.dataIndex]}: ${context.dataset.rawValues[context.dataIndex]}`;
+            }
+          }
+        }
+      }
     }
   });
 }
