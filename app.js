@@ -13,7 +13,7 @@ let currentUser = null;
 let radarChart = null; 
 let historyChart = null;
 let currentUserFriends = []; 
-let currentUserGames = [];
+let activeProfileGames = []; // Stores games globally so chart toggles are instant
 
 const tabs = {
   profile: { btn: document.getElementById('tab-profile'), content: document.getElementById('profile-section') },
@@ -31,9 +31,7 @@ function switchTab(tabName) {
 }
 
 tabs.profile.btn.addEventListener('click', () => {
-  if (currentUser) {
-    loadProfile(currentUser.uid);
-  }
+  if (currentUser) loadProfile(currentUser.uid);
   switchTab('profile');
 });
 
@@ -47,41 +45,24 @@ tabs.friends.btn.addEventListener('click', () => {
 });
 
 // --- CHART TOGGLES ---
-document.getElementById('limit-5-btn').addEventListener('click', (e) => {
-  updateHistoryChartLimit(e, 5);
-});
-document.getElementById('limit-10-btn').addEventListener('click', (e) => {
-  updateHistoryChartLimit(e, 10);
-});
-document.getElementById('limit-25-btn').addEventListener('click', (e) => {
-  updateHistoryChartLimit(e, 25);
-});
-document.getElementById('limit-50-btn').addEventListener('click', (e) => {
-  updateHistoryChartLimit(e, 50);
-});
+document.getElementById('limit-5-btn').addEventListener('click', (e) => updateHistoryChartLimit(e, 5));
+document.getElementById('limit-10-btn').addEventListener('click', (e) => updateHistoryChartLimit(e, 10));
+document.getElementById('limit-25-btn').addEventListener('click', (e) => updateHistoryChartLimit(e, 25));
+document.getElementById('limit-50-btn').addEventListener('click', (e) => updateHistoryChartLimit(e, 50));
 
 function updateHistoryChartLimit(e, newLimit) {
   document.querySelectorAll('#history-toggles .toggle-btn').forEach(b => b.classList.remove('active'));
   e.target.classList.add('active');
-  
-  if (currentUser) {
-    drawHistoryChart(currentUser.uid, newLimit);
-  }
+  drawHistoryChart(activeProfileGames, newLimit);
 }
 
 // --- MODALS & PWA ---
 const helpModal = document.getElementById('help-modal');
 const infoModal = document.getElementById('info-modal');
 
-document.getElementById('tab-help').addEventListener('click', () => {
-  helpModal.style.display = 'block';
-});
-document.getElementById('close-help').addEventListener('click', () => {
-  helpModal.style.display = 'none';
-});
-document.getElementById('close-info').addEventListener('click', () => {
-  infoModal.style.display = 'none';
-});
+document.getElementById('tab-help').addEventListener('click', () => helpModal.style.display = 'block');
+document.getElementById('close-help').addEventListener('click', () => helpModal.style.display = 'none');
+document.getElementById('close-info').addEventListener('click', () => infoModal.style.display = 'none');
 
 window.onclick = (e) => { 
   if (e.target == helpModal) helpModal.style.display = 'none'; 
@@ -125,15 +106,9 @@ photoInput.addEventListener('change', (e) => {
       let height = img.height;
 
       if (width > height) { 
-        if (width > MAX_SIZE) { 
-          height *= MAX_SIZE / width; 
-          width = MAX_SIZE; 
-        } 
+        if (width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; } 
       } else { 
-        if (height > MAX_SIZE) { 
-          width *= MAX_SIZE / height; 
-          height = MAX_SIZE; 
-        } 
+        if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; } 
       }
       
       canvas.width = width; 
@@ -192,9 +167,7 @@ const MASTER_ACHIEVEMENTS = [
   { id: 'Gutter-Free 🛡️', desc: 'Complete a game without throwing a single gutter ball.' }
 ];
 
-document.getElementById('back-to-me-btn').addEventListener('click', () => {
-  loadProfile(currentUser.uid);
-});
+document.getElementById('back-to-me-btn').addEventListener('click', () => loadProfile(currentUser.uid));
 
 window.viewFriendProfile = (friendUid) => {
   loadProfile(friendUid);
@@ -216,17 +189,13 @@ async function loadProfile(targetUid) {
     document.getElementById('user-name').innerText = data.name + (isMe ? "" : "'s Stats");
     document.getElementById('user-photo').src = data.customPhoto || data.defaultPhoto || '';
     
-    if (isMe) {
-      currentUserFriends = data.friends || [];
-    }
+    if (isMe) currentUserFriends = data.friends || [];
 
     let s = data.stats || {};
     document.getElementById('stat-avg').innerText = s.average || 0;
     document.getElementById('stat-high').innerText = s.highGame || 0;
     document.getElementById('stat-first').innerText = s.firstBallAvg || 0;
     document.getElementById('stat-open').innerText = `${s.openFrameRate || 0}%`;
-
-    drawRadarChart(s);
 
     let achData = data.achievements || {};
     if (Array.isArray(achData)) {
@@ -247,7 +216,6 @@ async function loadProfile(targetUid) {
       `;
     }).join('');
 
-    // Attach click listeners to achievements for the popups
     document.querySelectorAll('.achievement-wrapper').forEach(wrapper => {
       wrapper.addEventListener('click', () => {
         const idx = wrapper.getAttribute('data-idx');
@@ -258,13 +226,28 @@ async function loadProfile(targetUid) {
       });
     });
 
-    const activeBtn = document.querySelector('#history-toggles .toggle-btn.active');
-    const limit = activeBtn ? parseInt(activeBtn.innerText) : 10;
-    drawHistoryChart(targetUid, limit);
+    const gamesRef = collection(db, "games");
+    const userGamesQuery = query(gamesRef, where("userId", "==", targetUid));
+    
+    try {
+      const gSnap = await getDocs(userGamesQuery);
+      let allGames = [];
+      gSnap.forEach(doc => allGames.push(doc.data()));
+      
+      allGames.sort((a, b) => (a.date?.seconds || 0) - (b.date?.seconds || 0));
+      activeProfileGames = allGames; 
+      
+      const activeBtn = document.querySelector('#history-toggles .toggle-btn.active');
+      const limit = activeBtn ? parseInt(activeBtn.innerText) : 10;
+      
+      drawHistoryChart(activeProfileGames, limit);
+      drawRadarChart(s, activeProfileGames); 
+    } catch (err) {
+      console.error("Error loading games for charts:", err);
+    }
   }
 }
 
-// Helper to count game specifics for the line chart tooltips
 function getGameDetails(throws) {
   if (!throws || !Array.isArray(throws)) return { strikes: 0, spares: 0 };
   let strikes = 0, spares = 0;
@@ -290,95 +273,82 @@ function getGameDetails(throws) {
   return { strikes, spares };
 }
 
-async function drawHistoryChart(uid, gameLimit) {
+function drawHistoryChart(allGames, gameLimit) {
   const ctx = document.getElementById('historyChart').getContext('2d');
-  const gamesRef = collection(db, "games");
-  const userGamesQuery = query(gamesRef, where("userId", "==", uid));
+  const displayGames = allGames.slice(-gameLimit);
+
+  const labels = displayGames.map((g, i) => {
+    if(g.date instanceof Timestamp) return g.date.toDate().toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+    return `G${i+1}`; 
+  });
   
-  try {
-    const gSnap = await getDocs(userGamesQuery);
-    let displayGames = [];
-    gSnap.forEach(doc => displayGames.push(doc.data()));
-    
-    displayGames.sort((a, b) => (a.date?.seconds || 0) - (b.date?.seconds || 0));
-    displayGames = displayGames.slice(-gameLimit);
+  const data = displayGames.map(g => g.score);
+  const detailsData = displayGames.map(g => getGameDetails(g.throws));
 
-    const labels = displayGames.map((g, i) => {
-      if(g.date instanceof Timestamp) return g.date.toDate().toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
-      return `G${i+1}`; 
-    });
-    
-    const data = displayGames.map(g => g.score);
-    const detailsData = displayGames.map(g => getGameDetails(g.throws));
+  if (historyChart) historyChart.destroy();
 
-    if (historyChart) historyChart.destroy();
-
-    if (displayGames.length === 0) {
-      historyChart = new Chart(ctx, {
-        type: 'line',
-        data: { labels: ['No Data'], datasets: [{ data: [] }] },
-        options: { scales: { y: { display: false }, x: { display: false } }, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
-      });
-      return;
-    }
-
+  if (displayGames.length === 0) {
     historyChart = new Chart(ctx, {
       type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Score',
-          data: data,
-          gameDetails: detailsData, // Attach our calculated details here
-          borderColor: '#ff6f00',
-          backgroundColor: 'rgba(255, 111, 0, 0.1)',
-          borderWidth: 2,
-          pointBackgroundColor: '#0b3260',
-          pointBorderColor: '#ff6f00',
-          pointRadius: 4,
-          pointHoverRadius: 6,
-          fill: true,
-          tension: 0.3
-        }]
+      data: { labels: ['No Data'], datasets: [{ data: [] }] },
+      options: { scales: { y: { display: false }, x: { display: false } }, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+    });
+    return;
+  }
+
+  historyChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Score',
+        data: data,
+        gameDetails: detailsData, 
+        borderColor: '#ff6f00',
+        backgroundColor: 'rgba(255, 111, 0, 0.1)',
+        borderWidth: 2,
+        pointBackgroundColor: '#0b3260',
+        pointBorderColor: '#ff6f00',
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        pointHitRadius: 25, // <-- Expanded hit area for mobile tapping
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero: true, max: 300, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#95b8df' } },
+        x: { grid: { display: false }, ticks: { color: '#95b8df', maxTicksLimit: gameLimit > 10 ? 10 : gameLimit } }
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          y: { beginAtZero: true, max: 300, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#95b8df' } },
-          x: { grid: { display: false }, ticks: { color: '#95b8df', maxTicksLimit: gameLimit > 10 ? 10 : gameLimit } }
-        },
-        plugins: { 
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: 'rgba(4, 26, 51, 0.9)',
-            titleColor: '#ff6f00',
-            bodyFont: { size: 13 },
-            padding: 10,
-            displayColors: false,
-            callbacks: {
-              title: function(context) {
-                return context[0].label;
-              },
-              label: function(context) {
-                const details = context.dataset.gameDetails[context.dataIndex];
-                return [
-                  `Score: ${context.raw}`,
-                  `Strikes: ${details.strikes}`,
-                  `Spares: ${details.spares}`
-                ];
-              }
+      plugins: { 
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(4, 26, 51, 0.9)',
+          titleColor: '#ff6f00',
+          bodyFont: { size: 13 },
+          padding: 10,
+          displayColors: false,
+          callbacks: {
+            title: function(context) { return context[0].label; },
+            label: function(context) {
+              const details = context.dataset.gameDetails[context.dataIndex];
+              return [
+                `Score: ${context.raw}`,
+                `Strikes: ${details.strikes}`,
+                `Spares: ${details.spares}`
+              ];
             }
           }
         }
       }
-    });
-  } catch (err) {
-    console.error("Error loading games for history chart:", err);
-  }
+    }
+  });
 }
 
-function drawRadarChart(stats) {
+function drawRadarChart(stats, gamesHistory) {
   const ctx = document.getElementById('statsChart').getContext('2d');
   
   const avgWeb = stats.average ? (stats.average / 300) * 100 : 0;
@@ -386,18 +356,31 @@ function drawRadarChart(stats) {
   const firstBallWeb = stats.firstBallAvg ? (stats.firstBallAvg / 10) * 100 : 0;
   const fillRateWeb = stats.openFrameRate ? 100 - parseFloat(stats.openFrameRate) : 0;
   
-  let strikePct = 0; 
-  let sparePct = 0;
-  
-  if (stats.totalStrikes !== undefined) {
-    strikePct = (stats.totalStrikes / stats.totalFirstThrows) * 100;
-    sparePct = stats.totalSpareOpps > 0 ? (stats.totalSpares / stats.totalSpareOpps) * 100 : 0;
-  }
+  let trueStrikes = 0;
+  let trueSpares = 0;
+  let trueSpareOpps = 0;
+  let trueFirstThrows = 0;
 
-  // The scaled data to fit on the 0-100 radar web
+  gamesHistory.forEach(game => {
+    const frames = groupThrowsIntoFrames(game.throws || []);
+    frames.forEach((frame, index) => {
+      if (frame.length > 0 && index < 10) {
+        trueFirstThrows++;
+        if (frame[0] === 10) {
+          trueStrikes++;
+        } else {
+          trueSpareOpps++;
+          if (frame.length > 1 && frame[0] + frame[1] === 10) trueSpares++;
+        }
+      }
+    });
+  });
+
+  const strikePct = trueFirstThrows > 0 ? (trueStrikes / trueFirstThrows) * 100 : 0;
+  const sparePct = trueSpareOpps > 0 ? (trueSpares / trueSpareOpps) * 100 : 0;
+
   const chartData = [avgWeb, highWeb, strikePct, sparePct, fillRateWeb, firstBallWeb];
   
-  // The TRUE data to display in the tooltips when tapped
   const realData = [
     stats.average || 0,
     stats.highGame || 0,
@@ -416,11 +399,12 @@ function drawRadarChart(stats) {
       datasets: [{
         label: 'Bowler Profile',
         data: chartData,
-        rawValues: realData, // Attach raw data here
+        rawValues: realData,
         backgroundColor: 'rgba(255, 111, 0, 0.2)',
         borderColor: '#ff6f00',
         pointBackgroundColor: '#ff6f00',
         pointHoverRadius: 6,
+        pointHitRadius: 25, // <-- Expanded hit area for mobile tapping
         borderWidth: 2
       }]
     },
@@ -442,9 +426,8 @@ function drawRadarChart(stats) {
           displayColors: false,
           bodyFont: { size: 14, weight: 'bold' },
           callbacks: {
-            title: function() { return null; }, // Hide the default title
+            title: function() { return null; }, 
             label: function(context) {
-              // Pull the true unscaled data for the popup
               return `${context.chart.data.labels[context.dataIndex]}: ${context.dataset.rawValues[context.dataIndex]}`;
             }
           }
