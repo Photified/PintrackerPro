@@ -240,7 +240,6 @@ async function loadProfile(targetUid) {
         limit = activeBtn.innerText === 'ALL' ? 'ALL' : parseInt(activeBtn.innerText);
       }
       
-      // Updates 4 stat boxes, line chart, AND web chart!
       updateDashboard(activeProfileGames, limit); 
     } catch (err) {
       console.error("Error loading games for charts:", err);
@@ -282,20 +281,15 @@ function updateDashboard(allGames, requestedLimit) {
   const dOpenPct = dFirstThrows > 0 ? (dOpenFrames / dFirstThrows) * 100 : 0;
   const dFillPct = 100 - dOpenPct;
 
-  // 1. Update the Top 4 Stat Boxes dynamically
   document.getElementById('stat-avg').innerText = dAvg;
   document.getElementById('stat-high').innerText = dHighGame;
   document.getElementById('stat-first').innerText = dFirstBallAvg.toFixed(2);
   document.getElementById('stat-open').innerText = dOpenPct.toFixed(1) + '%';
 
-  // 2. Redraw Line Chart using the sliced displayGames array
   drawHistoryChart(displayGames, requestedLimit);
-
-  // 3. Redraw Radar Chart with Pro Curve Scaling
   drawRadarChart(dAvg, dHighGame, dFirstBallAvg, dStrikePct, dSparePct, dFillPct);
 }
 
-// Safely returns N/A for older games that don't have throw data saved
 function getGameDetails(throws) {
   if (!throws || !Array.isArray(throws) || throws.length === 0) return { strikes: 'N/A', spares: 'N/A' };
   let strikes = 0, spares = 0;
@@ -344,7 +338,6 @@ function drawHistoryChart(displayGames, requestedLimit) {
     return;
   }
 
-  // Dynamic sizing based on how crammed the graph is
   const dynamicRadius = gameCount > 25 ? 2 : 4;
   const dynamicHover = gameCount > 25 ? 4 : 6;
 
@@ -414,17 +407,18 @@ function drawRadarChart(avg, high, firstBall, strikePct, sparePct, fillPct) {
   const nSparePct = Number(sparePct) || 0;
   const nFillPct = Number(fillPct) || 0;
 
-  // Visual AMATEUR CURVE. Pushes stats outwards to make the web look full and rewarding.
-  const visAvg = Math.min(100, (nAvg / 220) * 100); 
-  const visHigh = Math.min(100, (nHigh / 280) * 100);
-  const vis1st = Math.min(100, (nFirstBall / 9) * 100); 
-  const visStrike = Math.min(100, (nStrikePct / 50) * 100); 
-  const visSpare = Math.min(100, (nSparePct / 70) * 100); 
-  const visFill = Math.min(100, (nFillPct / 85) * 100); 
+  // SQUARE ROOT POWER CURVE
+  // Uses Math.sqrt to push the plot points outward so the web looks fuller, 
+  // preventing accurate amateur stats from clumping near the center of the web.
+  const visAvg = Math.min(100, Math.sqrt(nAvg / 230) * 100); 
+  const visHigh = Math.min(100, Math.sqrt(nHigh / 300) * 100);
+  const vis1st = Math.min(100, Math.sqrt(nFirstBall / 9.5) * 100); 
+  const visStrike = Math.min(100, Math.sqrt(nStrikePct / 60) * 100); 
+  const visSpare = Math.min(100, Math.sqrt(nSparePct / 85) * 100); 
+  const visFill = Math.min(100, Math.sqrt(nFillPct / 90) * 100); 
 
   const chartData = [visAvg, visHigh, visStrike, visSpare, visFill, vis1st];
   
-  // The RAW data that appears accurately in the popup tooltips
   const realData = [
     nAvg,
     nHigh,
@@ -455,7 +449,6 @@ function drawRadarChart(avg, high, firstBall, strikePct, sparePct, fillPct) {
     options: {
       responsive: true, 
       maintainAspectRatio: false,
-      // Tapping anywhere on the radar triggers the definitions modal
       onClick: (e) => {
         document.getElementById('info-title').innerText = 'Metric Definitions';
         document.getElementById('info-desc').innerHTML = `
