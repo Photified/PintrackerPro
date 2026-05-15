@@ -197,9 +197,6 @@ async function loadProfile(targetUid) {
     document.getElementById('stat-first').innerText = s.firstBallAvg || 0;
     document.getElementById('stat-open').innerText = `${s.openFrameRate || 0}%`;
 
-    // Draw the radar chart relying entirely on the stored stats
-    drawRadarChart(s);
-
     let achData = data.achievements || {};
     if (Array.isArray(achData)) {
       const migrated = {}; 
@@ -229,6 +226,7 @@ async function loadProfile(targetUid) {
       });
     });
 
+    // Fetch all games to power BOTH charts
     const gamesRef = collection(db, "games");
     const userGamesQuery = query(gamesRef, where("userId", "==", targetUid));
     
@@ -244,6 +242,7 @@ async function loadProfile(targetUid) {
       const limit = activeBtn ? parseInt(activeBtn.innerText) : 10;
       
       drawHistoryChart(activeProfileGames, limit);
+      drawRadarChart(s, activeProfileGames); // Guarantee Radar is drawn AFTER games load!
     } catch (err) {
       console.error("Error loading games for charts:", err);
     }
@@ -314,7 +313,7 @@ function drawHistoryChart(allGames, gameLimit) {
         pointBorderColor: '#ff6f00',
         pointRadius: 4,
         pointHoverRadius: 6,
-        pointHitRadius: 25, 
+        pointHitRadius: 25, // Massive tap area
         fill: true,
         tension: 0.3
       }]
@@ -351,7 +350,7 @@ function drawHistoryChart(allGames, gameLimit) {
   });
 }
 
-function drawRadarChart(stats) {
+function drawRadarChart(stats, gamesHistory) {
   const ctx = document.getElementById('statsChart').getContext('2d');
   
   const avgWeb = stats.average ? (stats.average / 300) * 100 : 0;
@@ -359,8 +358,31 @@ function drawRadarChart(stats) {
   const firstBallWeb = stats.firstBallAvg ? (stats.firstBallAvg / 10) * 100 : 0;
   const fillRateWeb = stats.openFrameRate ? 100 - parseFloat(stats.openFrameRate) : 0;
   
-  const strikePct = stats.totalFirstThrows > 0 ? ((stats.totalStrikes || 0) / stats.totalFirstThrows) * 100 : 0;
-  const sparePct = stats.totalSpareOpps > 0 ? ((stats.totalSpares || 0) / stats.totalSpareOpps) * 100 : 0;
+  let trueStrikes = 0;
+  let trueSpares = 0;
+  let trueSpareOpps = 0;
+  let trueFirstThrows = 0;
+
+  if (gamesHistory && gamesHistory.length > 0) {
+    gamesHistory.forEach(game => {
+      const frames = groupThrowsIntoFrames(game.throws || []);
+      frames.forEach((frame, index) => {
+        if (frame.length > 0 && index < 10) {
+          trueFirstThrows++;
+          if (frame[0] === 10) {
+            trueStrikes++;
+          } else {
+            trueSpareOpps++;
+            if (frame.length > 1 && frame[0] + frame[1] === 10) trueSpares++;
+          }
+        }
+      });
+    });
+  }
+
+  // Uses correctly calculated true throws to fix the 0% glitch
+  const strikePct = trueFirstThrows > 0 ? (trueStrikes / trueFirstThrows) * 100 : 0;
+  const sparePct = trueSpareOpps > 0 ? (trueSpares / trueSpareOpps) * 100 : 0;
 
   const chartData = [avgWeb, highWeb, strikePct, sparePct, fillRateWeb, firstBallWeb];
   
@@ -387,7 +409,7 @@ function drawRadarChart(stats) {
         borderColor: '#ff6f00',
         pointBackgroundColor: '#ff6f00',
         pointHoverRadius: 6,
-        pointHitRadius: 25, 
+        pointHitRadius: 25, // Massive tap area
         borderWidth: 2
       }]
     },
